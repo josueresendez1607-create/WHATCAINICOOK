@@ -6,6 +6,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -435,7 +436,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal>
   final TextEditingController textoController = TextEditingController();
 
   bool notificacionesActivadas = true;
-  int indiceMenu = 0; // 0 = Inicio, 1 = Perfil, 2 = Acerca de
+  int indiceMenu = 0; // 0 = Inicio, 1 = Registros, 2 = Perfil, 3 = Acerca de
 
   @override
   void initState() {
@@ -783,6 +784,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal>
         index: indiceMenu,
         children: [
           _paginaInicio(),
+          const PantallaRegistros(),
           _paginaPerfil(),
           _paginaAcerca(),
         ],
@@ -802,6 +804,10 @@ class _PantallaPrincipalState extends State<PantallaPrincipal>
             label: 'Inicio',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.cloud),
+            label: 'Registros',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.person),
             label: 'Perfil',
           ),
@@ -811,6 +817,431 @@ class _PantallaPrincipalState extends State<PantallaPrincipal>
           ),
         ],
       ),
+    );
+  }
+}
+
+// ============================================================
+//  REGISTROS: JSON PÚBLICO CONECTADO A LA APP
+//  JSON: JSONPlaceholder -> https://jsonplaceholder.typicode.com/posts
+//  GET (ver), POST (agregar), PUT y PATCH (editar), DELETE (eliminar)
+// ============================================================
+class PantallaRegistros extends StatefulWidget {
+  const PantallaRegistros({super.key});
+
+  @override
+  State<PantallaRegistros> createState() => _PantallaRegistrosState();
+}
+
+class _PantallaRegistrosState extends State<PantallaRegistros> {
+  static const String _base = 'https://jsonplaceholder.typicode.com/posts';
+  static const Map<String, String> _headers = {
+    'Content-Type': 'application/json; charset=UTF-8',
+  };
+
+  List<Map<String, dynamic>> registros = [];
+  bool cargando = false;
+  String respuesta = 'Cargando datos...';
+  int _siguienteLocal = 101; // JSONPlaceholder no guarda lo que se crea
+
+  @override
+  void initState() {
+    super.initState();
+    _get();
+  }
+
+  // Lo creado en la app (id 101 en adelante) no existe en el servidor,
+  // por eso se edita o elimina solo dentro de la app.
+  bool _esLocal(Map<String, dynamic> r) => (r['id'] as int) > 100;
+
+  void _anotar(String metodo, String url, int? estado, String detalle) {
+    if (!mounted) return;
+    setState(() {
+      respuesta =
+      '$metodo  $url\nEstado: ${estado ?? 'sin respuesta'}\n$detalle';
+    });
+  }
+
+  String _bonito(Object? datos) =>
+      const JsonEncoder.withIndent('  ').convert(datos);
+
+  void _reemplazar(dynamic id, Map<String, dynamic> nuevo) {
+    final i = registros.indexWhere((r) => r['id'] == id);
+    if (i != -1) registros[i] = Map<String, dynamic>.from(nuevo);
+  }
+
+  // ---------------- GET: ver los registros del JSON ----------------
+  Future<void> _get() async {
+    setState(() => cargando = true);
+    final url = '$_base?_limit=15';
+    try {
+      final r = await http.get(Uri.parse(url));
+      if (r.statusCode == 200) {
+        final lista = (jsonDecode(r.body) as List)
+            .map<Map<String, dynamic>>((e) => {
+          'id': e['id'],
+          'user': 'usuario${e['userId']}',
+          'text': e['title'],
+        })
+            .toList();
+        if (!mounted) return;
+        setState(() => registros = lista);
+        _anotar('GET', url, r.statusCode,
+            'Se recibieron ${lista.length} registros');
+      } else {
+        _anotar('GET', url, r.statusCode, 'No se pudo obtener la información');
+      }
+    } catch (e) {
+      _anotar('GET', url, null, 'Error de conexión: $e');
+    } finally {
+      if (mounted) setState(() => cargando = false);
+    }
+  }
+
+  // ---------------- POST: agregar un registro nuevo ----------------
+  Future<void> _post() async {
+    final datos = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (_) => const _DialogoRegistro(titulo: 'Nuevo registro (POST)'),
+    );
+    if (datos == null) return;
+
+    final cuerpo = {'user': datos['user'], 'text': datos['text']};
+    try {
+      final r = await http.post(Uri.parse(_base),
+          headers: _headers, body: jsonEncode(cuerpo));
+      if (r.statusCode == 201 && mounted) {
+        setState(() => registros.insert(0, {'id': _siguienteLocal++, ...cuerpo}));
+      }
+      _anotar('POST', _base, r.statusCode, _bonito(jsonDecode(r.body)));
+    } catch (e) {
+      _anotar('POST', _base, null, 'Error de conexión: $e');
+    }
+  }
+
+  // ---------------- PUT: editar todo el registro ----------------
+  Future<void> _put(Map<String, dynamic> registro) async {
+    final datos = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (_) => _DialogoRegistro(
+        titulo: 'Editar registro (PUT)',
+        usuarioInicial: '${registro['user']}',
+        contenidoInicial: '${registro['text']}',
+      ),
+    );
+    if (datos == null) return;
+
+    final nuevo = {
+      'id': registro['id'],
+      'user': datos['user'],
+      'text': datos['text'],
+    };
+    final url = '$_base/${registro['id']}';
+
+    if (_esLocal(registro)) {
+      setState(() => _reemplazar(registro['id'], nuevo));
+      _anotar('PUT', url, null,
+          'Registro creado en la app: se edita solo aquí.\n'
+              '(JSONPlaceholder no guarda lo que se crea)');
+      return;
+    }
+
+    try {
+      final r = await http.put(Uri.parse(url),
+          headers: _headers, body: jsonEncode(nuevo));
+      if (r.statusCode == 200 && mounted) {
+        setState(() => _reemplazar(registro['id'], nuevo));
+      }
+      _anotar('PUT', url, r.statusCode, _bonito(jsonDecode(r.body)));
+    } catch (e) {
+      _anotar('PUT', url, null, 'Error de conexión: $e');
+    }
+  }
+
+  // ---------------- PATCH: editar solo el contenido ----------------
+  Future<void> _patch(Map<String, dynamic> registro) async {
+    final datos = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (_) => _DialogoRegistro(
+        titulo: 'Cambiar contenido (PATCH)',
+        contenidoInicial: '${registro['text']}',
+        soloContenido: true,
+      ),
+    );
+    if (datos == null) return;
+
+    final cambio = {'text': datos['text']};
+    final nuevo = {...registro, ...cambio};
+    final url = '$_base/${registro['id']}';
+
+    if (_esLocal(registro)) {
+      setState(() => _reemplazar(registro['id'], nuevo));
+      _anotar('PATCH', url, null,
+          'Registro creado en la app: se edita solo aquí.\n'
+              '(JSONPlaceholder no guarda lo que se crea)');
+      return;
+    }
+
+    try {
+      final r = await http.patch(Uri.parse(url),
+          headers: _headers, body: jsonEncode(cambio));
+      if (r.statusCode == 200 && mounted) {
+        setState(() => _reemplazar(registro['id'], nuevo));
+      }
+      _anotar('PATCH', url, r.statusCode, _bonito(jsonDecode(r.body)));
+    } catch (e) {
+      _anotar('PATCH', url, null, 'Error de conexión: $e');
+    }
+  }
+
+  // ---------------- DELETE: eliminar el registro ----------------
+  Future<void> _delete(Map<String, dynamic> registro) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar (DELETE)'),
+        content: Text('¿Eliminar el registro ${registro['id']}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmar != true) return;
+
+    final url = '$_base/${registro['id']}';
+
+    if (_esLocal(registro)) {
+      setState(() => registros.removeWhere((r) => r['id'] == registro['id']));
+      _anotar('DELETE', url, null,
+          'Registro creado en la app: se elimina solo de aquí.');
+      return;
+    }
+
+    try {
+      final r = await http.delete(Uri.parse(url));
+      if (r.statusCode == 200 && mounted) {
+        setState(
+                () => registros.removeWhere((x) => x['id'] == registro['id']));
+      }
+      _anotar('DELETE', url, r.statusCode, 'Registro ${registro['id']} eliminado');
+    } catch (e) {
+      _anotar('DELETE', url, null, 'Error de conexión: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        children: [
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            alignment: WrapAlignment.center,
+            children: [
+              ElevatedButton.icon(
+                onPressed: cargando ? null : _get,
+                icon: const Icon(Icons.download),
+                label: const Text('GET (actualizar)'),
+              ),
+              ElevatedButton.icon(
+                onPressed: _post,
+                icon: const Icon(Icons.add),
+                label: const Text('POST (agregar)'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Muestra la última petición y la respuesta del JSON
+          Container(
+            width: double.infinity,
+            height: 100,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF263238),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: SingleChildScrollView(
+              child: SelectableText(
+                respuesta,
+                style: const TextStyle(
+                  color: Colors.greenAccent,
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          Expanded(
+            child: cargando && registros.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : registros.isEmpty
+                ? const Center(child: Text('Sin datos. Presiona GET.'))
+                : ListView.builder(
+              itemCount: registros.length,
+              itemBuilder: (context, i) {
+                final registro = registros[i];
+                return Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: naranja,
+                            foregroundColor: Colors.white,
+                            child: Text('${registro['id']}'),
+                          ),
+                          title: Text(
+                            'Usuario: ${registro['user']}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          subtitle: Text(
+                            'Contenido: ${registro['text']}',
+                          ),
+                        ),
+                        Wrap(
+                          alignment: WrapAlignment.end,
+                          spacing: 4,
+                          children: [
+                            TextButton.icon(
+                              onPressed: () => _put(registro),
+                              icon: const Icon(Icons.edit, size: 18),
+                              label: const Text('Editar (PUT)'),
+                            ),
+                            TextButton.icon(
+                              onPressed: () => _patch(registro),
+                              icon: const Icon(
+                                Icons.drive_file_rename_outline,
+                                size: 18,
+                              ),
+                              label: const Text('Contenido (PATCH)'),
+                            ),
+                            TextButton.icon(
+                              onPressed: () => _delete(registro),
+                              icon: const Icon(
+                                Icons.delete,
+                                size: 18,
+                                color: Colors.red,
+                              ),
+                              label: const Text(
+                                'Eliminar (DELETE)',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Ventana para escribir Usuario y Contenido (POST, PUT y PATCH)
+class _DialogoRegistro extends StatefulWidget {
+  final String titulo;
+  final String usuarioInicial;
+  final String contenidoInicial;
+  final bool soloContenido;
+
+  const _DialogoRegistro({
+    required this.titulo,
+    this.usuarioInicial = '',
+    this.contenidoInicial = '',
+    this.soloContenido = false,
+  });
+
+  @override
+  State<_DialogoRegistro> createState() => _DialogoRegistroState();
+}
+
+class _DialogoRegistroState extends State<_DialogoRegistro> {
+  late final TextEditingController usuarioController;
+  late final TextEditingController contenidoController;
+
+  @override
+  void initState() {
+    super.initState();
+    usuarioController = TextEditingController(text: widget.usuarioInicial);
+    contenidoController = TextEditingController(text: widget.contenidoInicial);
+  }
+
+  @override
+  void dispose() {
+    usuarioController.dispose();
+    contenidoController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.titulo),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!widget.soloContenido) ...[
+              TextField(
+                controller: usuarioController,
+                decoration: const InputDecoration(
+                  labelText: 'Usuario',
+                  hintText: 'Ejemplo: jon',
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            TextField(
+              controller: contenidoController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Contenido',
+                hintText: 'Ejemplo: hello xd',
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (contenidoController.text.trim().isEmpty) return;
+            if (!widget.soloContenido && usuarioController.text.trim().isEmpty) {
+              return;
+            }
+            Navigator.pop(context, {
+              'user': usuarioController.text.trim(),
+              'text': contenidoController.text.trim(),
+            });
+          },
+          child: const Text('Enviar'),
+        ),
+      ],
     );
   }
 }

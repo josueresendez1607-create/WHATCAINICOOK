@@ -46,3 +46,9 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Archivos privados del servidor
+servidor/usuarios.json
+servidor/venv/
+
+servidor/venv/

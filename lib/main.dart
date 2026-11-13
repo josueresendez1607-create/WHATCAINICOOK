@@ -1,124 +1,82 @@
+import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
-import 'dart:math';
+import 'dart:math' as math;
 
-import 'package:crypto/crypto.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 
-// ===== Colores de la app (naranja del logo) =====
+// ===== Colores de la app =====
 const Color naranja = Color(0xFFFF6B00);
-const Color crema = Color(0xFFFFF6EC); // fondo
-const Color cafe = Color(0xFF3E2723); // textos oscuros
+const Color crema = Color(0xFFFFF6EC);
+const Color cafe = Color(0xFF3E2723);
 
 void main() {
   runApp(const MiAplicacion());
 }
 
 // ============================================================
-//  SERVICIO DE USUARIOS: guarda en usuarios.json + encriptación
+// SERVICIO DE USUARIOS
 // ============================================================
+
 class ServicioUsuarios {
-  static const String _claveWeb = 'usuarios_json';
+static const String _base = 'http://192.168.1.103:5000';
 
-  // ---------- Archivo JSON ----------
-  // En Android / Windows: archivo usuarios.json real.
-  // En Web (navegador no permite archivos): se guarda el mismo JSON
-  // en el almacenamiento local del navegador.
-  static Future<File> _archivo() async {
-    final dir = await getApplicationDocumentsDirectory();
-    return File('${dir.path}${Platform.pathSeparator}usuarios.json');
-  }
-
-  static Future<List<Map<String, dynamic>>> _leerUsuarios() async {
-    try {
-      String contenido;
-      if (kIsWeb) {
-        final prefs = await SharedPreferences.getInstance();
-        contenido = prefs.getString(_claveWeb) ?? '';
-      } else {
-        final archivo = await _archivo();
-        if (!await archivo.exists()) return [];
-        contenido = await archivo.readAsString();
-      }
-      if (contenido.trim().isEmpty) return [];
-      final datos = jsonDecode(contenido) as Map<String, dynamic>;
-      return List<Map<String, dynamic>>.from(datos['usuarios'] as List);
-    } catch (_) {
-      return [];
-    }
-  }
-
-  static Future<void> _guardarUsuarios(
-      List<Map<String, dynamic>> usuarios) async {
-    final contenido =
-    const JsonEncoder.withIndent('  ').convert({'usuarios': usuarios});
-    if (kIsWeb) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_claveWeb, contenido);
-    } else {
-      final archivo = await _archivo();
-      await archivo.writeAsString(contenido);
-    }
-  }
-
-  // ---------- Encriptación (SHA-256 + salt) ----------
-  static String _generarSalt() {
-    final random = Random.secure();
-    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
-    return base64UrlEncode(bytes);
-  }
-
-  static String _hash(String password, String salt) {
-    List<int> resultado = utf8.encode('$salt$password');
-    // 1000 iteraciones para hacerlo más difícil de adivinar
-    for (var i = 0; i < 1000; i++) {
-      resultado = sha256.convert(resultado).bytes;
-    }
-    return base64UrlEncode(resultado);
-  }
-
-  // ---------- Registro ----------
-  /// Devuelve null si todo salió bien, o el mensaje de error.
   static Future<String?> registrar(
       String nombre, String usuario, String password) async {
-    final usuarios = await _leerUsuarios();
-    final existe = usuarios.any(
-            (u) => (u['usuario'] as String).toLowerCase() == usuario.toLowerCase());
-    if (existe) return 'Ese usuario ya está registrado';
+    try {
+      final respuesta = await http.post(
+        Uri.parse('$_base/registrar'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'nombre': nombre,
+          'usuario': usuario,
+          'password': password,
+        }),
+      );
 
-    final salt = _generarSalt();
-    usuarios.add({
-      'nombre': nombre,
-      'usuario': usuario,
-      'salt': salt,
-      'password': _hash(password, salt), // nunca se guarda en texto plano
-    });
-    await _guardarUsuarios(usuarios);
-    return null;
+      final datos = jsonDecode(respuesta.body);
+
+      if (respuesta.statusCode == 201) {
+        return null;
+      }
+
+      return datos['mensaje'] ?? 'No se pudo crear la cuenta';
+    } catch (e) {
+      return 'No se pudo conectar con el servidor';
+    }
   }
 
-  // ---------- Inicio de sesión ----------
-  /// Devuelve el nombre del usuario si es correcto, o null si falla.
-  static Future<String?> iniciarSesion(String usuario, String password) async {
-    final usuarios = await _leerUsuarios();
-    for (final u in usuarios) {
-      if ((u['usuario'] as String).toLowerCase() == usuario.toLowerCase()) {
-        final hashIngresado = _hash(password, u['salt'] as String);
-        if (hashIngresado == u['password']) {
-          return u['nombre'] as String;
-        }
+  static Future<String?> iniciarSesion(
+      String usuario, String password) async {
+    try {
+      final respuesta = await http.post(
+        Uri.parse('$_base/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'usuario': usuario,
+          'password': password,
+        }),
+      );
+
+      final datos = jsonDecode(respuesta.body);
+
+      if (respuesta.statusCode == 200) {
+        return datos['nombre'];
       }
+
+      return null;
+    } catch (e) {
+      return null;
     }
-    return null;
   }
 }
 
-// ===== CLASE 1: Solo pone el MaterialApp =====
+// ============================================================
+// MATERIAL APP
+// ============================================================
+
 class MiAplicacion extends StatelessWidget {
   const MiAplicacion({super.key});
 
@@ -128,7 +86,10 @@ class MiAplicacion extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: naranja, primary: naranja),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: naranja,
+          primary: naranja,
+        ),
         scaffoldBackgroundColor: crema,
         appBarTheme: const AppBarTheme(
           backgroundColor: naranja,
@@ -137,20 +98,27 @@ class MiAplicacion extends StatelessWidget {
         cardTheme: CardThemeData(
           color: Colors.white,
           elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: naranja,
             foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 22,
+              vertical: 14,
+            ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
             ),
           ),
         ),
         textButtonTheme: TextButtonThemeData(
-          style: TextButton.styleFrom(foregroundColor: naranja),
+          style: TextButton.styleFrom(
+            foregroundColor: naranja,
+          ),
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
@@ -161,7 +129,10 @@ class MiAplicacion extends StatelessWidget {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: naranja, width: 2),
+            borderSide: const BorderSide(
+              color: naranja,
+              width: 2,
+            ),
           ),
         ),
       ),
@@ -171,8 +142,9 @@ class MiAplicacion extends StatelessWidget {
 }
 
 // ============================================================
-//  PANTALLA DE INICIO DE SESIÓN + REGISTRO (todo en la misma)
+// INICIO DE SESIÓN Y REGISTRO
 // ============================================================
+
 class PantallaLogin extends StatefulWidget {
   const PantallaLogin({super.key});
 
@@ -186,8 +158,8 @@ class _PantallaLoginState extends State<PantallaLogin> {
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmarController = TextEditingController();
 
-  bool modoRegistro = false; // false = iniciar sesión, true = registrarse
-  bool ocultarPassword = true; // la contraseña se ve como puntos
+  bool modoRegistro = false;
+  bool ocultarPassword = true;
   bool cargando = false;
 
   @override
@@ -209,7 +181,9 @@ class _PantallaLoginState extends State<PantallaLogin> {
   }
 
   void _mensaje(String texto) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(texto)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(texto)),
+    );
   }
 
   Future<void> _iniciarSesion() async {
@@ -222,12 +196,18 @@ class _PantallaLoginState extends State<PantallaLogin> {
     }
 
     setState(() => cargando = true);
-    final nombre = await ServicioUsuarios.iniciarSesion(usuario, password);
+
+    final nombre = await ServicioUsuarios.iniciarSesion(
+      usuario,
+      password,
+    );
+
     if (!mounted) return;
+
     setState(() => cargando = false);
 
     if (nombre == null) {
-      _mensaje('Usuario o contraseña incorrectos');
+      _mensaje('Usuario o contraseña incorrectos, o servidor desconectado');
       return;
     }
 
@@ -249,19 +229,27 @@ class _PantallaLoginState extends State<PantallaLogin> {
       _mensaje('Completa todos los campos');
       return;
     }
+
     if (password.length < 6) {
       _mensaje('La contraseña debe tener al menos 6 caracteres');
       return;
     }
+
     if (password != confirmar) {
       _mensaje('Las contraseñas no coinciden');
       return;
     }
 
     setState(() => cargando = true);
-    // La contraseña se guarda encriptada (hash + salt) en usuarios.json
-    final error = await ServicioUsuarios.registrar(nombre, usuario, password);
+
+    final error = await ServicioUsuarios.registrar(
+      nombre,
+      usuario,
+      password,
+    );
+
     if (!mounted) return;
+
     setState(() => cargando = false);
 
     if (error != null) {
@@ -270,12 +258,11 @@ class _PantallaLoginState extends State<PantallaLogin> {
     }
 
     _mensaje('Cuenta creada. Ya puedes iniciar sesión');
+
     nombreController.clear();
-    // Regresa al modo iniciar sesión conservando el usuario escrito
     _cambiarModo();
   }
 
-  // Campo con la etiqueta a la IZQUIERDA (fuera de la caja de texto)
   Widget _campo({
     required String etiqueta,
     required TextEditingController controller,
@@ -291,7 +278,10 @@ class _PantallaLoginState extends State<PantallaLogin> {
           width: 120,
           child: Text(
             etiqueta,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
         const SizedBox(width: 10),
@@ -305,11 +295,16 @@ class _PantallaLoginState extends State<PantallaLogin> {
               isDense: true,
               suffixIcon: mostrarOjo
                   ? IconButton(
-                icon: Icon(ocultarPassword
-                    ? Icons.visibility
-                    : Icons.visibility_off),
-                onPressed: () =>
-                    setState(() => ocultarPassword = !ocultarPassword),
+                icon: Icon(
+                  ocultarPassword
+                      ? Icons.visibility
+                      : Icons.visibility_off,
+                ),
+                onPressed: () {
+                  setState(() {
+                    ocultarPassword = !ocultarPassword;
+                  });
+                },
               )
                   : null,
             ),
@@ -323,7 +318,9 @@ class _PantallaLoginState extends State<PantallaLogin> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(modoRegistro ? 'Registrarse' : 'Iniciar sesión'),
+        title: Text(
+          modoRegistro ? 'Registrarse' : 'Iniciar sesión',
+        ),
         backgroundColor: naranja,
         foregroundColor: Colors.white,
       ),
@@ -345,8 +342,6 @@ class _PantallaLoginState extends State<PantallaLogin> {
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // Nombre: solo aparece al registrarse
                 if (modoRegistro) ...[
                   _campo(
                     etiqueta: 'Nombre:',
@@ -355,26 +350,26 @@ class _PantallaLoginState extends State<PantallaLogin> {
                   ),
                   const SizedBox(height: 15),
                 ],
-
                 _campo(
                   etiqueta: 'Usuario:',
                   controller: usuarioController,
                   ayuda: 'Escribe tu usuario',
                 ),
                 const SizedBox(height: 15),
-
                 _campo(
                   etiqueta: 'Contraseña:',
                   controller: passwordController,
                   esPassword: true,
                   mostrarOjo: true,
-                  ayuda: modoRegistro ? 'Mínimo 6 caracteres' : 'Tu contraseña',
+                  ayuda: modoRegistro
+                      ? 'Mínimo 6 caracteres'
+                      : 'Tu contraseña',
                   alEnviar: (_) {
-                    if (!modoRegistro) _iniciarSesion();
+                    if (!modoRegistro) {
+                      _iniciarSesion();
+                    }
                   },
                 ),
-
-                // Confirmar contraseña: solo aparece al registrarse
                 if (modoRegistro) ...[
                   const SizedBox(height: 15),
                   _campo(
@@ -385,7 +380,6 @@ class _PantallaLoginState extends State<PantallaLogin> {
                     alEnviar: (_) => _registrar(),
                   ),
                 ],
-
                 const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
@@ -395,11 +389,17 @@ class _PantallaLoginState extends State<PantallaLogin> {
                         : (modoRegistro ? _registrar : _iniciarSesion),
                     child: cargando
                         ? const SizedBox(
-                      height: 20,
                       width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                      ),
                     )
-                        : Text(modoRegistro ? 'Crear cuenta' : 'Iniciar sesión'),
+                        : Text(
+                      modoRegistro
+                          ? 'Crear cuenta'
+                          : 'Iniciar sesión',
+                    ),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -420,11 +420,17 @@ class _PantallaLoginState extends State<PantallaLogin> {
   }
 }
 
-// ===== CLASE 2: La pantalla principal (con menú inferior) =====
+// ============================================================
+// PANTALLA PRINCIPAL
+// ============================================================
+
 class PantallaPrincipal extends StatefulWidget {
   final String nombre;
 
-  const PantallaPrincipal({super.key, required this.nombre});
+  const PantallaPrincipal({
+    super.key,
+    required this.nombre,
+  });
 
   @override
   State<PantallaPrincipal> createState() => _PantallaPrincipalState();
@@ -433,14 +439,16 @@ class PantallaPrincipal extends StatefulWidget {
 class _PantallaPrincipalState extends State<PantallaPrincipal>
     with SingleTickerProviderStateMixin {
   late AnimationController controlador;
+
   final TextEditingController textoController = TextEditingController();
 
   bool notificacionesActivadas = true;
-  int indiceMenu = 0; // 0 = Inicio, 1 = Registros, 2 = Perfil, 3 = Acerca de
+  int indiceMenu = 0;
 
   @override
   void initState() {
     super.initState();
+
     controlador = AnimationController(
       duration: const Duration(seconds: 5),
       vsync: this,
@@ -457,11 +465,12 @@ class _PantallaPrincipalState extends State<PantallaPrincipal>
   void _cerrarSesion() {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const PantallaLogin()),
+      MaterialPageRoute(
+        builder: (context) => const PantallaLogin(),
+      ),
     );
   }
 
-  // ---------------- Opción 1 del menú: INICIO ----------------
   Widget _paginaInicio() {
     return Center(
       child: SingleChildScrollView(
@@ -479,7 +488,10 @@ class _PantallaPrincipalState extends State<PantallaPrincipal>
             ),
             const SizedBox(height: 20),
 
-            // ============ STACK ============
+            // NUEVO OBJETO GIRATORIO
+            const ContadorCilindro(),
+
+            const SizedBox(height: 25),
             Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
@@ -527,10 +539,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal>
                 ],
               ),
             ),
-
             const SizedBox(height: 20),
-
-            // ============ SARTÉN QUE GIRA + TEXTO QUE GIRA ============
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -559,9 +568,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal>
                 ),
               ],
             ),
-
             const SizedBox(height: 25),
-
             TextField(
               controller: textoController,
               decoration: const InputDecoration(
@@ -570,10 +577,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal>
                 prefixIcon: Icon(Icons.person),
               ),
             ),
-
             const SizedBox(height: 15),
-
-            // ============ BOTÓN SALUDAR + ALERTA ============
             ElevatedButton(
               onPressed: () {
                 String nombre = textoController.text;
@@ -608,12 +612,12 @@ class _PantallaPrincipalState extends State<PantallaPrincipal>
               },
               child: const Text('Saludar'),
             ),
-
             const SizedBox(height: 20),
-
-            // ============ CUPERTINO: SWITCH ============
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 8,
+              ),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
@@ -634,10 +638,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal>
                 ],
               ),
             ),
-
             const SizedBox(height: 15),
-
-            // ============ CUPERTINO: BOTÓN + ALERTA ============
             CupertinoButton(
               color: naranja,
               onPressed: () {
@@ -664,9 +665,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal>
                 style: TextStyle(color: Colors.white),
               ),
             ),
-
             const SizedBox(height: 15),
-
             ElevatedButton.icon(
               onPressed: () {
                 Navigator.push(
@@ -685,7 +684,6 @@ class _PantallaPrincipalState extends State<PantallaPrincipal>
     );
   }
 
-  // ---------------- Opción 2 del menú: PERFIL ----------------
   Widget _paginaPerfil() {
     return Center(
       child: SingleChildScrollView(
@@ -704,7 +702,10 @@ class _PantallaPrincipalState extends State<PantallaPrincipal>
             const SizedBox(height: 20),
             Text(
               widget.nombre,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 8),
             const Text('Sesión iniciada'),
@@ -713,7 +714,9 @@ class _PantallaPrincipalState extends State<PantallaPrincipal>
               child: ListTile(
                 leading: Icon(Icons.lock, color: naranja),
                 title: Text('Contraseña protegida'),
-                subtitle: Text('Se guarda con hash SHA-256 y salt en usuarios.json'),
+                subtitle: Text(
+                  'Se guarda con PBKDF2 y salt en usuarios.json',
+                ),
               ),
             ),
             const SizedBox(height: 24),
@@ -728,7 +731,6 @@ class _PantallaPrincipalState extends State<PantallaPrincipal>
     );
   }
 
-  // ---------------- Opción 3 del menú: ACERCA DE ----------------
   Widget _paginaAcerca() {
     return const Center(
       child: Padding(
@@ -736,16 +738,23 @@ class _PantallaPrincipalState extends State<PantallaPrincipal>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.info_outline, size: 70, color: naranja),
+            Icon(
+              Icons.info_outline,
+              size: 70,
+              color: naranja,
+            ),
             SizedBox(height: 16),
             Text(
               'WHATCAINICOOK',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             SizedBox(height: 8),
             Text(
               'Aplicación hecha con Flutter y Dart.\n'
-                  'Incluye inicio de sesión, registro y contraseñas encriptadas.',
+                  'Incluye inicio de sesión, registro y contraseñas protegidas.',
               textAlign: TextAlign.center,
             ),
           ],
@@ -762,7 +771,11 @@ class _PantallaPrincipalState extends State<PantallaPrincipal>
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.asset('assets/logo.png', width: 32, height: 32),
+              child: Image.asset(
+                'assets/logo.png',
+                width: 32,
+                height: 32,
+              ),
             ),
             const SizedBox(width: 10),
             const Text('Mi primera aplicación'),
@@ -778,8 +791,6 @@ class _PantallaPrincipalState extends State<PantallaPrincipal>
           ),
         ],
       ),
-
-      // IndexedStack conserva cada página al cambiar de opción
       body: IndexedStack(
         index: indiceMenu,
         children: [
@@ -789,11 +800,13 @@ class _PantallaPrincipalState extends State<PantallaPrincipal>
           _paginaAcerca(),
         ],
       ),
-
-      // ============ MENÚ INFERIOR ============
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: indiceMenu,
-        onTap: (i) => setState(() => indiceMenu = i),
+        onTap: (i) {
+          setState(() {
+            indiceMenu = i;
+          });
+        },
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,
         selectedItemColor: naranja,
@@ -822,10 +835,219 @@ class _PantallaPrincipalState extends State<PantallaPrincipal>
 }
 
 // ============================================================
-//  REGISTROS: JSON PÚBLICO CONECTADO A LA APP
-//  JSON: JSONPlaceholder -> https://jsonplaceholder.typicode.com/posts
-//  GET (ver), POST (agregar), PUT y PATCH (editar), DELETE (eliminar)
+// NUEVO OBJETO GIRATORIO CON CONTADOR
 // ============================================================
+
+class ContadorCilindro extends StatefulWidget {
+  const ContadorCilindro({super.key});
+
+  @override
+  State<ContadorCilindro> createState() => _ContadorCilindroState();
+}
+
+class _ContadorCilindroState extends State<ContadorCilindro>
+    with SingleTickerProviderStateMixin {
+  late AnimationController animacion;
+  Timer? temporizador;
+  StreamSubscription<AccelerometerEvent>? suscripcionSensor;
+
+  int contador = 0;
+  Offset desplazamiento = Offset.zero;
+
+  @override
+  void initState() {
+    super.initState();
+
+    animacion = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 5),
+    )..repeat();
+
+    temporizador = Timer.periodic(
+      const Duration(seconds: 1),
+          (timer) {
+        if (mounted) {
+          setState(() {
+            contador++;
+          });
+        }
+      },
+    );
+
+    suscripcionSensor = accelerometerEventStream(
+      samplingPeriod: SensorInterval.uiInterval,
+    ).listen((evento) {
+      if (!mounted) return;
+
+      final nuevoX = (-evento.x * 12).clamp(-55.0, 55.0).toDouble();
+      final nuevoY = (evento.y * 12).clamp(-55.0, 55.0).toDouble();
+
+      setState(() {
+        desplazamiento = Offset(
+          desplazamiento.dx * 0.7 + nuevoX * 0.3,
+          desplazamiento.dy * 0.7 + nuevoY * 0.3,
+        );
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    suscripcionSensor?.cancel();
+    temporizador?.cancel();
+    animacion.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const Text(
+          'Cilindro arcoíris giratorio',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: cafe,
+          ),
+        ),
+        const SizedBox(height: 15),
+        SizedBox(
+          width: 220,
+          height: 230,
+          child: AnimatedBuilder(
+            animation: animacion,
+            builder: (context, child) {
+              final angulo = animacion.value * 2 * math.pi;
+
+              return Transform.translate(
+                offset: desplazamiento,
+                child: Transform(
+                  alignment: Alignment.center,
+                  transform: Matrix4.identity()
+                    ..setEntry(3, 2, 0.003)
+                    ..rotateZ(-0.85)
+                    ..rotateX(0.9)
+                    ..rotateY(angulo),
+                  child: child,
+                ),
+              );
+            },
+            child: CustomPaint(
+              size: const Size(130, 170),
+              painter: CilindroArcoirisPainter(),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'Contador: $contador',
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Colors.deepOrange,
+          ),
+        ),
+        Text(
+          'Tiempo transcurrido: $contador segundos',
+          style: const TextStyle(
+            fontSize: 14,
+            color: cafe,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Inclina tu teléfono para mover el cilindro',
+          style: TextStyle(color: cafe),
+        ),
+      ],
+    );
+  }
+}
+
+class CilindroArcoirisPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cuerpo = RRect.fromRectAndRadius(
+      Rect.fromLTWH(35, 25, 60, 120),
+      const Radius.circular(8),
+    );
+
+    final pintura = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          Colors.red,
+          Colors.orange,
+          Colors.yellow,
+          Colors.green,
+          Colors.blue,
+          Colors.purple,
+        ],
+      ).createShader(
+        Rect.fromLTWH(35, 25, 60, 120),
+      );
+
+    final borde = Paint()
+      ..color = Colors.black26
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+
+    final tapa = Paint()
+      ..shader = const LinearGradient(
+        colors: [
+          Colors.pink,
+          Colors.purple,
+          Colors.blue,
+        ],
+      ).createShader(
+        const Rect.fromLTWH(35, 15, 60, 25),
+      );
+
+    final brillo = Paint()
+      ..color = Colors.white54
+      ..strokeWidth = 5
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(38, 145, 54, 12),
+        const Radius.circular(5),
+      ),
+      Paint()..color = Colors.deepPurple,
+    );
+
+    canvas.drawRRect(cuerpo, pintura);
+    canvas.drawRRect(cuerpo, borde);
+
+    canvas.drawOval(
+      const Rect.fromLTWH(35, 15, 60, 22),
+      tapa,
+    );
+
+    canvas.drawOval(
+      const Rect.fromLTWH(35, 15, 60, 22),
+      borde,
+    );
+
+    canvas.drawLine(
+      const Offset(48, 40),
+      const Offset(48, 125),
+      brillo,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return false;
+  }
+}
+
+// ============================================================
+// REGISTROS: JSONPLACEHOLDER
+// ============================================================
+
 class PantallaRegistros extends StatefulWidget {
   const PantallaRegistros({super.key});
 
@@ -834,15 +1056,20 @@ class PantallaRegistros extends StatefulWidget {
 }
 
 class _PantallaRegistrosState extends State<PantallaRegistros> {
-  static const String _base = 'https://jsonplaceholder.typicode.com/posts';
+  static const String _base =
+      'https://jsonplaceholder.typicode.com/posts';
+
   static const Map<String, String> _headers = {
     'Content-Type': 'application/json; charset=UTF-8',
   };
 
   List<Map<String, dynamic>> registros = [];
+
   bool cargando = false;
+
   String respuesta = 'Cargando datos...';
-  int _siguienteLocal = 101; // JSONPlaceholder no guarda lo que se crea
+
+  int _siguienteLocal = 101;
 
   @override
   void initState() {
@@ -850,32 +1077,44 @@ class _PantallaRegistrosState extends State<PantallaRegistros> {
     _get();
   }
 
-  // Lo creado en la app (id 101 en adelante) no existe en el servidor,
-  // por eso se edita o elimina solo dentro de la app.
-  bool _esLocal(Map<String, dynamic> r) => (r['id'] as int) > 100;
+  bool _esLocal(Map<String, dynamic> r) {
+    return (r['id'] as int) > 100;
+  }
 
-  void _anotar(String metodo, String url, int? estado, String detalle) {
+  void _anotar(
+      String metodo,
+      String url,
+      int? estado,
+      String detalle,
+      ) {
     if (!mounted) return;
+
     setState(() {
       respuesta =
       '$metodo  $url\nEstado: ${estado ?? 'sin respuesta'}\n$detalle';
     });
   }
 
-  String _bonito(Object? datos) =>
-      const JsonEncoder.withIndent('  ').convert(datos);
+  String _bonito(Object? datos) {
+    return const JsonEncoder.withIndent('  ').convert(datos);
+  }
 
   void _reemplazar(dynamic id, Map<String, dynamic> nuevo) {
     final i = registros.indexWhere((r) => r['id'] == id);
-    if (i != -1) registros[i] = Map<String, dynamic>.from(nuevo);
+
+    if (i != -1) {
+      registros[i] = Map<String, dynamic>.from(nuevo);
+    }
   }
 
-  // ---------------- GET: ver los registros del JSON ----------------
   Future<void> _get() async {
     setState(() => cargando = true);
+
     final url = '$_base?_limit=15';
+
     try {
       final r = await http.get(Uri.parse(url));
+
       if (r.statusCode == 200) {
         final lista = (jsonDecode(r.body) as List)
             .map<Map<String, dynamic>>((e) => {
@@ -884,51 +1123,97 @@ class _PantallaRegistrosState extends State<PantallaRegistros> {
           'text': e['title'],
         })
             .toList();
+
         if (!mounted) return;
-        setState(() => registros = lista);
-        _anotar('GET', url, r.statusCode,
-            'Se recibieron ${lista.length} registros');
+
+        setState(() {
+          registros = lista;
+        });
+
+        _anotar(
+          'GET',
+          url,
+          r.statusCode,
+          'Se recibieron ${lista.length} registros',
+        );
       } else {
-        _anotar('GET', url, r.statusCode, 'No se pudo obtener la información');
+        _anotar(
+          'GET',
+          url,
+          r.statusCode,
+          'No se pudo obtener la información',
+        );
       }
     } catch (e) {
-      _anotar('GET', url, null, 'Error de conexión: $e');
+      _anotar(
+        'GET',
+        url,
+        null,
+        'Error de conexión: $e',
+      );
     } finally {
-      if (mounted) setState(() => cargando = false);
+      if (mounted) {
+        setState(() => cargando = false);
+      }
     }
   }
 
-  // ---------------- POST: agregar un registro nuevo ----------------
   Future<void> _post() async {
     final datos = await showDialog<Map<String, String>>(
       context: context,
-      builder: (_) => const _DialogoRegistro(titulo: 'Nuevo registro (POST)'),
+      builder: (_) {
+        return const _DialogoRegistro(
+          titulo: 'Nuevo registro (POST)',
+        );
+      },
     );
+
     if (datos == null) return;
 
-    final cuerpo = {'user': datos['user'], 'text': datos['text']};
+    final cuerpo = {
+      'user': datos['user'],
+      'text': datos['text'],
+    };
+
     try {
-      final r = await http.post(Uri.parse(_base),
-          headers: _headers, body: jsonEncode(cuerpo));
+      final r = await http.post(
+        Uri.parse(_base),
+        headers: _headers,
+        body: jsonEncode(cuerpo),
+      );
+
       if (r.statusCode == 201 && mounted) {
-        setState(() => registros.insert(0, {'id': _siguienteLocal++, ...cuerpo}));
+        setState(() {
+          registros.insert(0, {
+            'id': _siguienteLocal++,
+            ...cuerpo,
+          });
+        });
       }
-      _anotar('POST', _base, r.statusCode, _bonito(jsonDecode(r.body)));
+
+      _anotar(
+        'POST',
+        _base,
+        r.statusCode,
+        _bonito(jsonDecode(r.body)),
+      );
     } catch (e) {
       _anotar('POST', _base, null, 'Error de conexión: $e');
     }
   }
 
-  // ---------------- PUT: editar todo el registro ----------------
   Future<void> _put(Map<String, dynamic> registro) async {
     final datos = await showDialog<Map<String, String>>(
       context: context,
-      builder: (_) => _DialogoRegistro(
-        titulo: 'Editar registro (PUT)',
-        usuarioInicial: '${registro['user']}',
-        contenidoInicial: '${registro['text']}',
-      ),
+      builder: (_) {
+        return _DialogoRegistro(
+          titulo: 'Editar registro (PUT)',
+          usuarioInicial: '${registro['user']}',
+          contenidoInicial: '${registro['text']}',
+        );
+      },
     );
+
     if (datos == null) return;
 
     final nuevo = {
@@ -936,101 +1221,175 @@ class _PantallaRegistrosState extends State<PantallaRegistros> {
       'user': datos['user'],
       'text': datos['text'],
     };
+
     final url = '$_base/${registro['id']}';
 
     if (_esLocal(registro)) {
-      setState(() => _reemplazar(registro['id'], nuevo));
-      _anotar('PUT', url, null,
-          'Registro creado en la app: se edita solo aquí.\n'
-              '(JSONPlaceholder no guarda lo que se crea)');
+      setState(() {
+        _reemplazar(registro['id'], nuevo);
+      });
+
+      _anotar(
+        'PUT',
+        url,
+        null,
+        'Registro creado en la app: se edita solo aquí.\n'
+            '(JSONPlaceholder no guarda lo que se crea)',
+      );
+
       return;
     }
 
     try {
-      final r = await http.put(Uri.parse(url),
-          headers: _headers, body: jsonEncode(nuevo));
+      final r = await http.put(
+        Uri.parse(url),
+        headers: _headers,
+        body: jsonEncode(nuevo),
+      );
+
       if (r.statusCode == 200 && mounted) {
-        setState(() => _reemplazar(registro['id'], nuevo));
+        setState(() {
+          _reemplazar(registro['id'], nuevo);
+        });
       }
-      _anotar('PUT', url, r.statusCode, _bonito(jsonDecode(r.body)));
+
+      _anotar(
+        'PUT',
+        url,
+        r.statusCode,
+        _bonito(jsonDecode(r.body)),
+      );
     } catch (e) {
       _anotar('PUT', url, null, 'Error de conexión: $e');
     }
   }
 
-  // ---------------- PATCH: editar solo el contenido ----------------
   Future<void> _patch(Map<String, dynamic> registro) async {
     final datos = await showDialog<Map<String, String>>(
       context: context,
-      builder: (_) => _DialogoRegistro(
-        titulo: 'Cambiar contenido (PATCH)',
-        contenidoInicial: '${registro['text']}',
-        soloContenido: true,
-      ),
+      builder: (_) {
+        return _DialogoRegistro(
+          titulo: 'Cambiar contenido (PATCH)',
+          contenidoInicial: '${registro['text']}',
+          soloContenido: true,
+        );
+      },
     );
+
     if (datos == null) return;
 
-    final cambio = {'text': datos['text']};
-    final nuevo = {...registro, ...cambio};
+    final cambio = {
+      'text': datos['text'],
+    };
+
+    final nuevo = {
+      ...registro,
+      ...cambio,
+    };
+
     final url = '$_base/${registro['id']}';
 
     if (_esLocal(registro)) {
-      setState(() => _reemplazar(registro['id'], nuevo));
-      _anotar('PATCH', url, null,
-          'Registro creado en la app: se edita solo aquí.\n'
-              '(JSONPlaceholder no guarda lo que se crea)');
+      setState(() {
+        _reemplazar(registro['id'], nuevo);
+      });
+
+      _anotar(
+        'PATCH',
+        url,
+        null,
+        'Registro creado en la app: se edita solo aquí.\n'
+            '(JSONPlaceholder no guarda lo que se crea)',
+      );
+
       return;
     }
 
     try {
-      final r = await http.patch(Uri.parse(url),
-          headers: _headers, body: jsonEncode(cambio));
+      final r = await http.patch(
+        Uri.parse(url),
+        headers: _headers,
+        body: jsonEncode(cambio),
+      );
+
       if (r.statusCode == 200 && mounted) {
-        setState(() => _reemplazar(registro['id'], nuevo));
+        setState(() {
+          _reemplazar(registro['id'], nuevo);
+        });
       }
-      _anotar('PATCH', url, r.statusCode, _bonito(jsonDecode(r.body)));
+
+      _anotar(
+        'PATCH',
+        url,
+        r.statusCode,
+        _bonito(jsonDecode(r.body)),
+      );
     } catch (e) {
       _anotar('PATCH', url, null, 'Error de conexión: $e');
     }
   }
 
-  // ---------------- DELETE: eliminar el registro ----------------
   Future<void> _delete(Map<String, dynamic> registro) async {
     final confirmar = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Eliminar (DELETE)'),
-        content: Text('¿Eliminar el registro ${registro['id']}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Eliminar (DELETE)'),
+          content: Text(
+            '¿Eliminar el registro ${registro['id']}?',
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Eliminar'),
+            ),
+          ],
+        );
+      },
     );
+
     if (confirmar != true) return;
 
     final url = '$_base/${registro['id']}';
 
     if (_esLocal(registro)) {
-      setState(() => registros.removeWhere((r) => r['id'] == registro['id']));
-      _anotar('DELETE', url, null,
-          'Registro creado en la app: se elimina solo de aquí.');
+      setState(() {
+        registros.removeWhere(
+              (r) => r['id'] == registro['id'],
+        );
+      });
+
+      _anotar(
+        'DELETE',
+        url,
+        null,
+        'Registro creado en la app: se elimina solo de aquí.',
+      );
+
       return;
     }
 
     try {
       final r = await http.delete(Uri.parse(url));
+
       if (r.statusCode == 200 && mounted) {
-        setState(
-                () => registros.removeWhere((x) => x['id'] == registro['id']));
+        setState(() {
+          registros.removeWhere(
+                (x) => x['id'] == registro['id'],
+          );
+        });
       }
-      _anotar('DELETE', url, r.statusCode, 'Registro ${registro['id']} eliminado');
+
+      _anotar(
+        'DELETE',
+        url,
+        r.statusCode,
+        'Registro ${registro['id']} eliminado',
+      );
     } catch (e) {
       _anotar('DELETE', url, null, 'Error de conexión: $e');
     }
@@ -1060,8 +1419,6 @@ class _PantallaRegistrosState extends State<PantallaRegistros> {
             ],
           ),
           const SizedBox(height: 10),
-
-          // Muestra la última petición y la respuesta del JSON
           Container(
             width: double.infinity,
             height: 100,
@@ -1082,16 +1439,20 @@ class _PantallaRegistrosState extends State<PantallaRegistros> {
             ),
           ),
           const SizedBox(height: 10),
-
           Expanded(
             child: cargando && registros.isEmpty
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(
+              child: CircularProgressIndicator(),
+            )
                 : registros.isEmpty
-                ? const Center(child: Text('Sin datos. Presiona GET.'))
+                ? const Center(
+              child: Text('Sin datos. Presiona GET.'),
+            )
                 : ListView.builder(
               itemCount: registros.length,
               itemBuilder: (context, i) {
                 final registro = registros[i];
+
                 return Card(
                   child: Padding(
                     padding: const EdgeInsets.all(8),
@@ -1120,7 +1481,10 @@ class _PantallaRegistrosState extends State<PantallaRegistros> {
                           children: [
                             TextButton.icon(
                               onPressed: () => _put(registro),
-                              icon: const Icon(Icons.edit, size: 18),
+                              icon: const Icon(
+                                Icons.edit,
+                                size: 18,
+                              ),
                               label: const Text('Editar (PUT)'),
                             ),
                             TextButton.icon(
@@ -1129,7 +1493,9 @@ class _PantallaRegistrosState extends State<PantallaRegistros> {
                                 Icons.drive_file_rename_outline,
                                 size: 18,
                               ),
-                              label: const Text('Contenido (PATCH)'),
+                              label: const Text(
+                                'Contenido (PATCH)',
+                              ),
                             ),
                             TextButton.icon(
                               onPressed: () => _delete(registro),
@@ -1140,7 +1506,9 @@ class _PantallaRegistrosState extends State<PantallaRegistros> {
                               ),
                               label: const Text(
                                 'Eliminar (DELETE)',
-                                style: TextStyle(color: Colors.red),
+                                style: TextStyle(
+                                  color: Colors.red,
+                                ),
                               ),
                             ),
                           ],
@@ -1158,7 +1526,10 @@ class _PantallaRegistrosState extends State<PantallaRegistros> {
   }
 }
 
-// Ventana para escribir Usuario y Contenido (POST, PUT y PATCH)
+// ============================================================
+// DIÁLOGO PARA REGISTROS
+// ============================================================
+
 class _DialogoRegistro extends StatefulWidget {
   final String titulo;
   final String usuarioInicial;
@@ -1183,8 +1554,14 @@ class _DialogoRegistroState extends State<_DialogoRegistro> {
   @override
   void initState() {
     super.initState();
-    usuarioController = TextEditingController(text: widget.usuarioInicial);
-    contenidoController = TextEditingController(text: widget.contenidoInicial);
+
+    usuarioController = TextEditingController(
+      text: widget.usuarioInicial,
+    );
+
+    contenidoController = TextEditingController(
+      text: widget.contenidoInicial,
+    );
   }
 
   @override
@@ -1230,10 +1607,15 @@ class _DialogoRegistroState extends State<_DialogoRegistro> {
         ),
         ElevatedButton(
           onPressed: () {
-            if (contenidoController.text.trim().isEmpty) return;
-            if (!widget.soloContenido && usuarioController.text.trim().isEmpty) {
+            if (contenidoController.text.trim().isEmpty) {
               return;
             }
+
+            if (!widget.soloContenido &&
+                usuarioController.text.trim().isEmpty) {
+              return;
+            }
+
             Navigator.pop(context, {
               'user': usuarioController.text.trim(),
               'text': contenidoController.text.trim(),
@@ -1245,6 +1627,10 @@ class _DialogoRegistroState extends State<_DialogoRegistro> {
     );
   }
 }
+
+// ============================================================
+// SEGUNDA PÁGINA
+// ============================================================
 
 class SegundaPagina extends StatelessWidget {
   const SegundaPagina({super.key});

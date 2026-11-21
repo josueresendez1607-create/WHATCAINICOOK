@@ -51,4 +51,19 @@ app.*.map.json
 servidor/usuarios.json
 servidor/venv/
 
-servidor/venv/
+# --- WHATCANICOOK: secretos y entornos locales ---
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.venv/
+backend/__pycache__/
+*.keystore
+*.jks
+android/key.properties
+android/app/upload-keystore.jks
+android/app/debug.keystore
+releases/*.aab
+releases/*.apk
+!releases/.gitkeep
+

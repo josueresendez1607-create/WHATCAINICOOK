@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" role="img" aria-label="WHATCANICOOK">
+  <rect width="1200" height="400" fill="#FFF6EC"/>
+  <g transform="translate(40 40)">
+    <circle cx="160" cy="160" r="150" fill="#F26A1B"/>
+    <ellipse cx="160" cy="232" rx="118" ry="34" fill="#FFFFFF" stroke="#C94E0A" stroke-width="8"/>
+    <ellipse cx="160" cy="228" rx="86" ry="20" fill="#FFF6EC"/>
+    <path d="M92 176 h136 v58 a16 16 0 0 1 -16 16 h-104 a16 16 0 0 1 -16 -16 z" fill="#FFFFFF" stroke="#C94E0A" stroke-width="8"/>
+    <circle cx="108" cy="132" r="52" fill="#FFFFFF" stroke="#C94E0A" stroke-width="8"/>
+    <circle cx="160" cy="112" r="58" fill="#FFFFFF" stroke="#C94E0A" stroke-width="8"/>
+    <circle cx="212" cy="132" r="52" fill="#FFFFFF" stroke="#C94E0A" stroke-width="8"/>
+    <path d="M246 84 q34 -30 64 -6 q-28 34 -64 6 z" fill="#4E9E63"/>
+  </g>
+  <text x="380" y="222" font-family="Arial, Helvetica, sans-serif" font-size="86" font-weight="bold" fill="#2B2422">WHATCANICOOK</text>
+  <rect x="382" y="252" width="430" height="12" rx="6" fill="#F26A1B"/>
+</svg>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="WHATCANICOOK app icon">
+  <rect width="1024" height="1024" rx="220" fill="#FFF6EC"/>
+  <circle cx="512" cy="500" r="350" fill="#F26A1B"/>
+  <ellipse cx="512" cy="650" rx="252" ry="76" fill="#FFFFFF" stroke="#C94E0A" stroke-width="16"/>
+  <ellipse cx="512" cy="642" rx="178" ry="42" fill="#FFF6EC"/>
+  <path d="M392 520 h240 v126 a32 32 0 0 1 -32 32 h-176 a32 32 0 0 1 -32 -32 z" fill="#FFFFFF" stroke="#C94E0A" stroke-width="16"/>
+  <circle cx="420" cy="420" r="106" fill="#FFFFFF" stroke="#C94E0A" stroke-width="16"/>
+  <circle cx="512" cy="378" r="118" fill="#FFFFFF" stroke="#C94E0A" stroke-width="16"/>
+  <circle cx="604" cy="420" r="106" fill="#FFFFFF" stroke="#C94E0A" stroke-width="16"/>
+  <path d="M680 300 q70 -62 132 -12 q-58 70 -132 12 z" fill="#4E9E63"/>
+</svg>

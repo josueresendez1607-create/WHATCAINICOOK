@@ -9,7 +9,7 @@ El escaneo de ingredientes usa Gemini desde un **backend propio**. La clave nunc
 3. Crea una API key y cópiala.
 4. Guárdala solo en tu máquina. **No la pegues en GitHub, Flutter, correos ni capturas.**
 
-> El modelo por defecto es `gemini-3.8-flash`. Si Google cambia los nombres de modelo, ajusta `GEMINI_MODEL` en `.env` según la documentación oficial.
+> El modelo por defecto es `gemini-3.8-flash` (Flash, disponible en el nivel gratuito y compatible con visión). Google ya no permite `gemini-2.5-flash` a cuentas nuevas; si aparece un error `404 ... no longer available to new users`, cambia `GEMINI_MODEL` a `gemini-3.8-flash`.
 
 ## 2. Archivo `.env`
 
@@ -53,8 +53,18 @@ curl http://127.0.0.1:5000/api/health
 Respuesta esperada cuando la clave está configurada:
 
 ```json
-{"aiConfigured":true,"model":"gemini-3.8-flash","status":"ok"}
+{
+  "aiConfigured": true,
+  "geminiApi": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
+  "integration": "ready",
+  "model": "gemini-3.8-flash",
+  "modelSource": "env",
+  "status": "ok",
+  "visionEndpoint": "/api/vision/ingredients"
+}
 ```
+
+`integration` es `ready` cuando hay clave configurada y `api_key_missing` cuando no. `modelSource` indica si el modelo viene de `.env` (`env`) o del valor por defecto (`default`).
 
 ## 4. Ejecutar Flutter contra el backend
 

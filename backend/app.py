@@ -28,7 +28,9 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 load_dotenv(os.path.join(os.path.dirname(BASE_DIR), ".env"))
 
 API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
-MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash").strip()
+MODEL_FROM_ENV = os.getenv("GEMINI_MODEL", "").strip()
+MODEL = MODEL_FROM_ENV or "gemini-3.8-flash"
+MODEL_SOURCE = "env" if MODEL_FROM_ENV else "default"
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").strip()
 MAX_IMAGE_BYTES = 12 * 1024 * 1024
 ALLOWED_MIMES = {"image/jpeg", "image/png", "image/webp"}
@@ -66,8 +68,12 @@ def health():
     return jsonify(
         {
             "status": "ok",
+            "integration": "ready" if API_KEY else "api_key_missing",
             "aiConfigured": bool(API_KEY),
             "model": MODEL,
+            "modelSource": MODEL_SOURCE,
+            "visionEndpoint": "/api/vision/ingredients",
+            "geminiApi": GEMINI_URL,
         }
     )
 
@@ -168,4 +174,8 @@ def analyze_ingredients():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5000")), debug=True)
+    app.run(
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", "5000")),
+        debug=os.getenv("FLASK_DEBUG", "0") == "1",
+    )

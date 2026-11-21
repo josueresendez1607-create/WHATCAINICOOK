@@ -96,9 +96,52 @@ Cambia `version:` en `pubspec.yaml` antes de cada publicación, por ejemplo:
 version: 1.0.1+2
 ```
 
-## Prueba en dispositivo
+## Prueba en dispositivo o emulador
 
-No se realizó ninguna prueba en dispositivo físico ni emulador durante esta sesión: el entorno no tenía ninguno conectado. Antes de publicar, instala la APK y verifica:
+No se realizó ninguna prueba en dispositivo físico ni emulador durante esta sesión. Sí existe un AVD `Medium_Phone_API_37.0`, pero no puede arrancar: la imagen es `x86_64` y el equipo tiene la virtualización por hardware desactivada en BIOS/UEFI.
+
+Síntoma exacto del emulador:
+
+```text
+CPU Acceleration: DISABLED
+CPU Acceleration status: Android Emulator hypervisor driver is not installed on this machine
+ERROR | x86_64 emulation currently requires hardware acceleration!
+```
+
+Comprobación desde PowerShell:
+
+```powershell
+Get-ComputerInfo -Property HyperVRequirementVirtualizationFirmwareEnabled
+# En este entorno devolvió False
+```
+
+### Solución
+
+1. Reinicia el equipo y entra en BIOS/UEFI.
+2. Activa **Intel VT-x / VT-d** o **AMD-V / SVM** (el nombre depende del fabricante).
+3. Guarda y arranca Windows.
+4. Instala el driver oficial si aún no está:
+
+   ```powershell
+   $sdk = 'C:\Users\josue\AppData\Local\Android\Sdk\cmdline-tools\latest\bin\sdkmanager.bat'
+   & $sdk "--install=extras/google/Android_Emulator_Hypervisor_Driver"
+   cmd.exe /c '"C:\Users\josue\AppData\Local\Android\Sdk\extras\google\Android_Emulator_Hypervisor_Driver\silent_install.bat"'
+   ```
+
+   Alternativamente, activa **Windows Hypervisor Platform** desde “Activar o desactivar características de Windows”.
+
+5. Verifica:
+
+   ```powershell
+   flutter emulators --launch Medium_Phone_API_37.0
+   adb devices
+   ```
+
+   `adb` está en `C:\Users\josue\AppData\Local\Android\Sdk\platform-tools\adb.exe`.
+
+> En este entorno el driver AEHD quedó instalado pero no puede iniciar (`sc.exe query aehd` devuelve `0xffffffa1`) porque la firmware virtualization sigue desactivada. Eso debe corregirse en BIOS/UEFI; no se puede cambiar desde Windows.
+
+Antes de publicar, instala la APK en un dispositivo real o emulador ya corregido y verifica:
 
 - permisos de cámara/galería;
 - escaneo real con backend configurado;

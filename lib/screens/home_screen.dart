@@ -475,12 +475,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Future<void> _openImage(ImageSource source) async {
+    if (_scanning) return;
     if (!AppConfig.visionConfigured) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'El análisis con IA requiere compilar con WHATCANICOOK_API_BASE_URL. '
-            'Puedes usar la selección manual.',
+            'El análisis de fotos no está disponible en este momento. '
+            'Puedes agregar ingredientes manualmente.',
           ),
         ),
       );
@@ -524,7 +525,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (!mounted) return;
       setState(() => _scanning = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo abrir la imagen: $error')),
+        const SnackBar(content: Text('No se pudo abrir la imagen.')),
       );
     }
   }

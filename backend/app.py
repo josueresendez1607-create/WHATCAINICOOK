@@ -16,9 +16,11 @@ devuelve la receta completa desde el catálogo local.
 """
 
 import base64
+import hashlib
 import json
 import os
 import re
+import time
 import unicodedata
 from typing import Any, Dict, List, Tuple
 
@@ -46,6 +48,13 @@ ALLOWED_MIMES = {
     "image/heic",
     "image/heif",
 }
+# Evita gastar cuota cuando Gemini ya respondió 429.
+GEMINI_COOLDOWN_SECONDS = 90
+_GEMINI_COOLDOWN_UNTIL = 0.0
+# Cachés simples en memoria para evitar solicitudes repetidas.
+_VISION_CACHE: Dict[str, Dict[str, Any]] = {}
+_GENERATION_CACHE: Dict[str, Dict[str, Any]] = {}
+_CACHE_MAX_ITEMS = 64
 RECIPES_PATH = os.path.join(PROJECT_DIR, "assets", "data", "recipes.json")
 
 GEMINI_URL = (
@@ -96,6 +105,37 @@ def _error(message: str, status: int = 400, **extra: Any):
     payload: Dict[str, Any] = {"error": message}
     payload.update(extra)
     return jsonify(payload), status
+
+
+def _gemini_in_cooldown() -> bool:
+    return time.time() < _GEMINI_COOLDOWN_UNTIL
+
+
+def _set_gemini_cooldown(response: Any = None) -> None:
+    global _GEMINI_COOLDOWN_UNTIL
+    seconds = GEMINI_COOLDOWN_SECONDS
+    if response is not None:
+        retry_after = str(getattr(response, "headers", {}).get("Retry-After", "")).strip()
+        if retry_after.isdigit():
+            seconds = max(1, min(int(retry_after), 300))
+    _GEMINI_COOLDOWN_UNTIL = max(_GEMINI_COOLDOWN_UNTIL, time.time() + seconds)
+
+
+def _cache_get(cache: Dict[str, Dict[str, Any]], key: str) -> Any:
+    entry = cache.get(key)
+    if not entry:
+        return None
+    if entry.get("expires", 0) < time.time():
+        cache.pop(key, None)
+        return None
+    return entry.get("value")
+
+
+def _cache_set(cache: Dict[str, Dict[str, Any]], key: str, value: Any, ttl: int = 300) -> None:
+    if len(cache) >= _CACHE_MAX_ITEMS:
+        oldest_key = min(cache, key=lambda k: cache[k].get("expires", 0))
+        cache.pop(oldest_key, None)
+    cache[key] = {"value": value, "expires": time.time() + ttl}
 
 
 def _extract_json(text: str) -> Dict[str, Any]:
@@ -229,6 +269,8 @@ def _gemini_select(
     """Pide a Gemini que seleccione IDs del catálogo. Nunca inventa recetas."""
     if not API_KEY:
         return [], {}, "Gemini no está configurado en el servidor."
+    if _gemini_in_cooldown():
+        return [], {}, "Gemini en enfriamiento por límite de uso."
 
     payload = {
         "systemInstruction": {"parts": [{"text": RANKING_SYSTEM_INSTRUCTION}]},
@@ -273,6 +315,8 @@ def _gemini_select(
         return [], {}, "No se pudo contactar al servicio de IA."
 
     if response.status_code != 200:
+        if response.status_code == 429:
+            _set_gemini_cooldown(response)
         return [], {}, f"Gemini devolvió HTTP {response.status_code}."
 
     try:
@@ -373,6 +417,19 @@ def analyze_ingredients():
     if len(raw) > MAX_IMAGE_BYTES:
         return _error("La imagen supera el límite de 12 MB.", 413)
 
+    cache_key = hashlib.sha256(raw).hexdigest()
+    cached = _cache_get(_VISION_CACHE, cache_key)
+    if cached:
+        return jsonify(cached)
+
+    if _gemini_in_cooldown():
+        return _error(
+            "Se alcanzó el límite gratuito del servicio de IA. "
+            "Intenta de nuevo más tarde o agrega ingredientes manualmente.",
+            503,
+            upstream_status=429,
+        )
+
     payload = {
         "systemInstruction": {"parts": [{"text": SYSTEM_INSTRUCTION}]},
         "contents": [
@@ -414,8 +471,9 @@ def analyze_ingredients():
     if response.status_code != 200:
         upstream = response.status_code
         if upstream == 429:
+            _set_gemini_cooldown(response)
             return _error(
-                "El servicio de IA está temporalmente saturado por límite de uso. "
+                "Se alcanzó el límite gratuito del servicio de IA. "
                 "Intenta de nuevo más tarde o agrega ingredientes manualmente.",
                 503,
                 upstream_status=upstream,
@@ -478,13 +536,13 @@ def analyze_ingredients():
     except (KeyError, IndexError, ValueError, TypeError, json.JSONDecodeError) as exc:
         return _error(f"No se pudo interpretar la respuesta de IA: {exc}", 500)
 
-    return jsonify(
-        {
-            "model": body.get("modelVersion", MODEL),
-            "ingredients": clean_items,
-            "warning": "La IA puede equivocarse. Revisa y corrige la lista antes de continuar.",
-        }
-    )
+    result_payload = {
+        "model": body.get("modelVersion", MODEL),
+        "ingredients": clean_items,
+        "warning": "La IA puede equivocarse. Revisa y corrige la lista antes de continuar.",
+    }
+    _cache_set(_VISION_CACHE, cache_key, result_payload, ttl=600)
+    return jsonify(result_payload)
 
 
 @app.get("/api/recipes")
@@ -569,6 +627,19 @@ def generate_recipes():
         )
 
     tokens, names = _ingredient_tokens(raw_ingredients)
+    cache_key = json.dumps(
+        {
+            "ingredients": sorted({_normalize(n) for n in names if _normalize(n)}),
+            "filters": sorted({_normalize(f) for f in filters if _normalize(f)}),
+            "count": count,
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+    )
+    cached = _cache_get(_GENERATION_CACHE, cache_key)
+    if cached:
+        return jsonify(cached)
+
     local_order = _rank_local(candidates, tokens)
 
     # Limitar candidatos enviados a Gemini para reducir latencia.
@@ -593,21 +664,26 @@ def generate_recipes():
     elif mode == "gemini":
         warning = None
     else:
-        warning = "Selección local sobre el catálogo verificado."
+        if "429" in gemini_note or "enfriamiento" in gemini_note.lower() or "límite" in gemini_note.lower():
+            warning = "Se alcanzó el límite gratuito del servicio de IA. Mostrando recetas del catálogo verificado."
+        else:
+            warning = "Selección local sobre el catálogo verificado."
 
-    return jsonify(
-        {
-            "mode": mode,
-            "model": MODEL if mode == "gemini" else None,
-            "selected": selected,
-            "recipes": chosen,
-            "reasons": reasons,
-            "filledLocally": filled_locally,
-            "totalCandidates": len(candidates),
-            "verifiedOnly": True,
-            "warning": warning,
-        }
-    )
+    result_payload = {
+        "mode": mode,
+        "model": MODEL if mode == "gemini" else None,
+        "selected": selected,
+        "recipes": chosen,
+        "reasons": reasons,
+        "filledLocally": filled_locally,
+        "totalCandidates": len(candidates),
+        "verifiedOnly": True,
+        "warning": warning,
+    }
+    # Cachear más tiempo los resultados locales para no reintentar Gemini en enfriamiento.
+    ttl = 600 if mode == "gemini" else 180
+    _cache_set(_GENERATION_CACHE, cache_key, result_payload, ttl=ttl)
+    return jsonify(result_payload)
 
 
 if __name__ == "__main__":

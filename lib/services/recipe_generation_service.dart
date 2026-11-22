@@ -79,7 +79,47 @@ class RecipeGenerationService {
   final http.Client _client;
   final String _baseUrl;
 
+  static final Map<String, RecipeGenerationResult> _cache =
+      <String, RecipeGenerationResult>{};
+  static final Map<String, Future<AppResult<RecipeGenerationResult>>> _inFlight =
+      <String, Future<AppResult<RecipeGenerationResult>>>{};
+  static DateTime? _cooldownUntil;
+
   bool get isConfigured => _baseUrl.isNotEmpty;
+
+  static bool get _inCooldown =>
+      _cooldownUntil != null && DateTime.now().isBefore(_cooldownUntil!);
+
+  static void _setCooldown([Duration duration = const Duration(seconds: 90)]) {
+    final until = DateTime.now().add(duration);
+    if (_cooldownUntil == null || until.isAfter(_cooldownUntil!)) {
+      _cooldownUntil = until;
+    }
+  }
+
+  static String _cacheKey({
+    required List<String> ingredients,
+    required int count,
+    required List<String> filters,
+  }) {
+    final normIngredients = ingredients
+        .map((e) => e.trim().toLowerCase())
+        .where((e) => e.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    final normFilters = filters
+        .map((e) => e.trim().toLowerCase())
+        .where((e) => e.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    return jsonEncode({
+      'i': normIngredients,
+      'f': normFilters,
+      'c': count,
+    });
+  }
 
   Future<AppResult<RecipeGenerationResult>> generate({
     required List<String> ingredients,
@@ -92,6 +132,44 @@ class RecipeGenerationService {
       );
     }
 
+    final key = _cacheKey(
+      ingredients: ingredients,
+      count: count,
+      filters: filters,
+    );
+    final cached = _cache[key];
+    if (cached != null) return AppSuccess(cached);
+
+    if (_inCooldown) {
+      return const AppFailure(
+        'Se alcanzó el límite gratuito del servicio de IA. '
+        'Mostrando recetas del catálogo verificado.',
+      );
+    }
+
+    final inFlight = _inFlight[key];
+    if (inFlight != null) return inFlight;
+
+    final future = _generateRemote(
+      ingredients: ingredients,
+      count: count,
+      filters: filters,
+      key: key,
+    );
+    _inFlight[key] = future;
+    try {
+      return await future;
+    } finally {
+      _inFlight.remove(key);
+    }
+  }
+
+  Future<AppResult<RecipeGenerationResult>> _generateRemote({
+    required List<String> ingredients,
+    required int count,
+    required List<String> filters,
+    required String key,
+  }) async {
     final uri = Uri.parse('$_baseUrl/api/recipes/generate');
     try {
       final response = await _client
@@ -107,9 +185,23 @@ class RecipeGenerationService {
           .timeout(const Duration(seconds: 20));
 
       if (response.statusCode != 200) {
+        int? upstreamStatus;
+        String? serverMessage;
+        try {
+          final decoded = jsonDecode(response.body);
+          if (decoded is Map<String, dynamic>) {
+            serverMessage = decoded['error']?.toString();
+            final up = decoded['upstream_status'];
+            if (up is num) upstreamStatus = up.toInt();
+          }
+        } catch (_) {}
+        if (response.statusCode == 429 || upstreamStatus == 429) {
+          _setCooldown();
+        }
         return AppFailure(
-          _messageFromBody(response.body) ??
-              'El backend devolvió HTTP ${response.statusCode}.',
+          serverMessage ??
+              'No se pudo generar recetas en este momento. '
+                  'Intenta de nuevo más tarde.',
         );
       }
 
@@ -119,13 +211,18 @@ class RecipeGenerationService {
           'El backend no devolvió recetas verificadas para esos filtros.',
         );
       }
+      // Cachea resultados; si fue local por límite, el backend ya controla cooldown.
+      _cache[key] = value;
       return AppSuccess(value);
     } on TimeoutException {
       return const AppFailure(
         'El backend tardó demasiado en responder. Intenta de nuevo.',
       );
-    } catch (error) {
-      return AppFailure('No se pudo conectar con el backend: $error');
+    } catch (_) {
+      return const AppFailure(
+        'No se pudo conectar con el servicio de recetas. '
+        'Intenta de nuevo más tarde.',
+      );
     }
   }
 
@@ -134,7 +231,6 @@ class RecipeGenerationService {
     required int count,
     required List<String> filters,
   }) {
-    // Se codifica manualmente para evitar dependencias adicionales.
     final buffer = StringBuffer()
       ..write('{"ingredients":[')
       ..write(ingredients.map(_jsonString).join(','))
@@ -157,19 +253,6 @@ class RecipeGenerationService {
       throw const FormatException('El backend devolvió un objeto inesperado.');
     }
     return decoded;
-  }
-
-  String? _messageFromBody(String body) {
-    try {
-      final decoded = jsonDecode(body);
-      if (decoded is Map<String, dynamic>) {
-        final message = decoded['error']?.toString();
-        if (message != null && message.isNotEmpty) return message;
-      }
-    } catch (_) {
-      // Se usa el mensaje HTTP genérico.
-    }
-    return null;
   }
 
   static String _jsonString(String value) {

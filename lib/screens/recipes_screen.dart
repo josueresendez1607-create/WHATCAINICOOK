@@ -474,14 +474,18 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
                     .first,
               )
               .toList();
-          note = value.usedGemini
-              ? 'IA: ${value.recipes.length} recetas seleccionadas del catálogo verificado.'
-              : 'Mostrando recetas del catálogo verificado según tus ingredientes.';
-          if (value.warning != null && value.usedGemini) {
-            note = '$note ${value.warning}';
+          if (value.usedGemini) {
+            note =
+                'IA: ${value.recipes.length} recetas seleccionadas del catálogo verificado.';
+            if (value.warning != null) note = '$note ${value.warning}';
+          } else {
+            final warning = value.warning ?? '';
+            note = warning.toLowerCase().contains('límite gratuito')
+                ? warning
+                : 'Mostrando recetas del catálogo verificado según tus ingredientes.';
           }
 
-        case AppFailure():
+        case AppFailure(:final message):
           final fallback = matcher.match(
             recipes: recipes,
             availableKeys: available,
@@ -490,7 +494,10 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
             profile: profile,
           );
           results = fallback.take(_count).toList();
-          note = 'Mostrando recetas del catálogo verificado según tus ingredientes.';
+          final msg = message.toLowerCase();
+          note = msg.contains('límite gratuito')
+              ? message
+              : 'Mostrando recetas del catálogo verificado según tus ingredientes.';
       }
 
       final hiddenIds =

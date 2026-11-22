@@ -607,7 +607,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       width: 36,
                                       height: 36,
                                       decoration: BoxDecoration(
-                                        color: AppColors.gold.withValues(alpha: 0.12),
+                                        color: AppColors.gold.withValues(
+                                          alpha: 0.12,
+                                        ),
                                         borderRadius: BorderRadius.circular(10),
                                       ),
                                       child: const Icon(

@@ -10,4 +10,5 @@ abstract final class AppRoutes {
   static const history = '/history';
   static const profile = '/profile';
   static const settings = '/settings';
+  static const shoppingList = '/shopping-list';
 }

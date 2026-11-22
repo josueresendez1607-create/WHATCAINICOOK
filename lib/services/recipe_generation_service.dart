@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:whatcanicook/core/config.dart';
 import 'package:whatcanicook/core/result.dart';
 import 'package:whatcanicook/models/recipe.dart';
+import 'package:whatcanicook/repositories/ai_cache_repository.dart';
 
 /// Resultado de la selección asistida por IA.
 ///
@@ -72,12 +73,17 @@ class RecipeGenerationResult {
 /// La clave de Gemini permanece en el backend; Flutter solo envía ingredientes
 /// y filtros, y recibe recetas completas del catálogo verificado.
 class RecipeGenerationService {
-  RecipeGenerationService({http.Client? client, String? baseUrl})
-    : _client = client ?? http.Client(),
-      _baseUrl = baseUrl ?? AppConfig.visionBaseUrl;
+  RecipeGenerationService({
+    http.Client? client,
+    String? baseUrl,
+    AiCacheRepository? cache,
+  }) : _client = client ?? http.Client(),
+       _baseUrl = baseUrl ?? AppConfig.visionBaseUrl,
+       _cacheRepo = cache;
 
   final http.Client _client;
   final String _baseUrl;
+  final AiCacheRepository? _cacheRepo;
 
   static final Map<String, RecipeGenerationResult> _cache =
       <String, RecipeGenerationResult>{};
@@ -137,6 +143,16 @@ class RecipeGenerationService {
     );
     final cached = _cache[key];
     if (cached != null) return AppSuccess(cached);
+    final persisted = await _cacheRepo?.get('gen:$key', kind: 'generation');
+    if (persisted != null) {
+      try {
+        final value = RecipeGenerationResult.fromJson(persisted);
+        if (value.recipes.isNotEmpty) {
+          _cache[key] = value;
+          return AppSuccess(value);
+        }
+      } catch (_) {}
+    }
 
     if (_inCooldown) {
       return const AppFailure(
@@ -203,14 +219,25 @@ class RecipeGenerationService {
         );
       }
 
-      final value = RecipeGenerationResult.fromJson(_decodeBody(response.body));
+      final decoded = _decodeBody(response.body);
+      final value = RecipeGenerationResult.fromJson(decoded);
       if (value.recipes.isEmpty) {
         return const AppFailure(
           'El backend no devolvió recetas verificadas para esos filtros.',
         );
       }
-      // Cachea resultados; si fue local por límite, el backend ya controla cooldown.
       _cache[key] = value;
+      try {
+        final ttl = value.usedGemini
+            ? const Duration(hours: 6)
+            : const Duration(minutes: 30);
+        await _cacheRepo?.set(
+          'gen:$key',
+          kind: 'generation',
+          value: decoded,
+          ttl: ttl,
+        );
+      } catch (_) {}
       return AppSuccess(value);
     } on TimeoutException {
       return const AppFailure(

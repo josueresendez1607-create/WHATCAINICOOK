@@ -201,6 +201,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                     const Divider(height: 1),
                     _ProfileLink(
+                      icon: Icons.shopping_cart_outlined,
+                      title: 'Lista de compras',
+                      subtitle: 'Ingredientes faltantes y compras pendientes.',
+                      onTap: () =>
+                          Navigator.of(context)
+                              .pushNamed(AppRoutes.shoppingList),
+                    ),
+                    const Divider(height: 1),
+                    _ProfileLink(
                       icon: Icons.settings_outlined,
                       title: 'Configuración',
                       subtitle: 'Estado de IA y datos locales.',

@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:whatcanicook/core/config.dart';
 import 'package:whatcanicook/core/result.dart';
 import 'package:whatcanicook/models/ingredient.dart';
+import 'package:whatcanicook/repositories/ai_cache_repository.dart';
 
 class VisionAnalysis {
   const VisionAnalysis({
@@ -25,12 +26,17 @@ class VisionAnalysis {
 /// La app nunca contiene la clave de Gemini: envía la imagen al backend y
 /// recibe únicamente la lista de ingredientes detectados.
 class VisionService {
-  VisionService({http.Client? client, String? baseUrl})
-    : _client = client ?? http.Client(),
-      _baseUrl = baseUrl ?? AppConfig.visionBaseUrl;
+  VisionService({
+    http.Client? client,
+    String? baseUrl,
+    AiCacheRepository? cache,
+  }) : _client = client ?? http.Client(),
+       _baseUrl = baseUrl ?? AppConfig.visionBaseUrl,
+       _cacheRepo = cache;
 
   final http.Client _client;
   final String _baseUrl;
+  final AiCacheRepository? _cacheRepo;
 
   static final Map<String, VisionAnalysis> _cache = <String, VisionAnalysis>{};
   static final Map<String, Future<AppResult<VisionAnalysis>>> _inFlight =
@@ -82,6 +88,24 @@ class VisionService {
     final key = _fingerprint(bytes);
     final cached = _cache[key];
     if (cached != null) return AppSuccess(cached);
+    final persisted = await _cacheRepo?.get('vision:$key', kind: 'vision');
+    if (persisted != null) {
+      try {
+        final analysis = VisionAnalysis(
+          ingredients: (persisted['ingredients'] as List<dynamic>? ?? const [])
+              .whereType<Map>()
+              .map(
+                (e) =>
+                    DetectedIngredient.fromJson(Map<String, dynamic>.from(e)),
+              )
+              .toList(),
+          model: persisted['model']?.toString() ?? 'desconocido',
+          warning: persisted['warning']?.toString(),
+        );
+        _cache[key] = analysis;
+        return AppSuccess(analysis);
+      } catch (_) {}
+    }
 
     if (_inCooldown) {
       return const AppFailure(
@@ -148,6 +172,28 @@ class VisionService {
         warning: decoded['warning'] as String?,
       );
       _cache[key] = analysis;
+      try {
+        await _cacheRepo?.set(
+          'vision:$key',
+          kind: 'vision',
+          ttl: const Duration(hours: 6),
+          value: {
+            'model': analysis.model,
+            'warning': analysis.warning,
+            'ingredients': items
+                .map(
+                  (e) => {
+                    'name': e.name,
+                    'confidence': e.confidence,
+                    'quantity': e.quantity,
+                    'unit': e.unit,
+                    'category': e.category,
+                  },
+                )
+                .toList(),
+          },
+        );
+      } catch (_) {}
       return AppSuccess(analysis);
     } on SocketException {
       return const AppFailure(

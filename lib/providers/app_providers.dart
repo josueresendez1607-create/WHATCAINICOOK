@@ -1,12 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatcanicook/models/hidden_recipe.dart';
 import 'package:whatcanicook/models/ingredient.dart';
+import 'package:whatcanicook/models/shopping_item.dart';
 import 'package:whatcanicook/models/user_profile.dart';
+import 'package:whatcanicook/repositories/ai_cache_repository.dart';
 import 'package:whatcanicook/repositories/favorite_repository.dart';
 import 'package:whatcanicook/repositories/hidden_recipe_repository.dart';
 import 'package:whatcanicook/repositories/history_repository.dart';
 import 'package:whatcanicook/repositories/ingredient_repository.dart';
 import 'package:whatcanicook/repositories/profile_repository.dart';
+import 'package:whatcanicook/repositories/shopping_list_repository.dart';
 import 'package:whatcanicook/services/catalog_service.dart';
 import 'package:whatcanicook/services/recipe_generation_service.dart';
 import 'package:whatcanicook/services/vision_service.dart';
@@ -19,9 +22,15 @@ final hiddenRecipeRepositoryProvider = Provider(
   (ref) => HiddenRecipeRepository(),
 );
 final profileRepositoryProvider = Provider((ref) => ProfileRepository());
-final visionServiceProvider = Provider((ref) => VisionService());
+final aiCacheRepositoryProvider = Provider((ref) => AiCacheRepository());
+final shoppingListRepositoryProvider = Provider(
+  (ref) => ShoppingListRepository(),
+);
+final visionServiceProvider = Provider(
+  (ref) => VisionService(cache: ref.read(aiCacheRepositoryProvider)),
+);
 final recipeGenerationServiceProvider = Provider(
-  (ref) => RecipeGenerationService(),
+  (ref) => RecipeGenerationService(cache: ref.read(aiCacheRepositoryProvider)),
 );
 
 /// Categoría solicitada desde Home. RecipesScreen la consume y la limpia.
@@ -273,4 +282,53 @@ class LastAnalysisInfoNotifier extends Notifier<String?> {
   String? build() => null;
 
   void set(String? info) => state = info;
+}
+
+final shoppingListProvider =
+    AsyncNotifierProvider<ShoppingListNotifier, List<ShoppingItem>>(
+      ShoppingListNotifier.new,
+    );
+
+class ShoppingListNotifier extends AsyncNotifier<List<ShoppingItem>> {
+  @override
+  Future<List<ShoppingItem>> build() =>
+      ref.read(shoppingListRepositoryProvider).all();
+
+  Future<void> add(ShoppingItem item) async {
+    await _update(() => ref.read(shoppingListRepositoryProvider).add(item));
+  }
+
+  Future<void> addMissing({required List<ShoppingItem> items}) async {
+    if (items.isEmpty) return;
+    await _update(
+      () => ref.read(shoppingListRepositoryProvider).addMany(items),
+    );
+  }
+
+  Future<void> toggle(int id, bool checked) async {
+    await _update(
+      () => ref.read(shoppingListRepositoryProvider).toggleChecked(id, checked),
+    );
+  }
+
+  Future<void> remove(int id) async {
+    await _update(() => ref.read(shoppingListRepositoryProvider).remove(id));
+  }
+
+  Future<void> clearChecked() async {
+    await _update(
+      () => ref.read(shoppingListRepositoryProvider).clearChecked(),
+    );
+  }
+
+  Future<void> clearAll() async {
+    await _update(() => ref.read(shoppingListRepositoryProvider).clearAll());
+  }
+
+  Future<void> _update(Future<void> Function() action) async {
+    state = await AsyncValue.guard(() async {
+      await action();
+      return ref.read(shoppingListRepositoryProvider).all();
+    });
+  }
 }

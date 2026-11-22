@@ -11,7 +11,7 @@ class DatabaseHelper {
   DatabaseHelper._();
   static final DatabaseHelper instance = DatabaseHelper._();
 
-  static const int _version = 2;
+  static const int _version = 3;
   static const String _name = 'whatcanicook.db';
 
   Database? _database;
@@ -148,6 +148,33 @@ class DatabaseHelper {
         value TEXT NOT NULL
       )
     ''');
+    batch.execute('''
+      CREATE TABLE ai_cache (
+        cache_key TEXT PRIMARY KEY,
+        kind TEXT NOT NULL,
+        value TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        expires_at INTEGER NOT NULL
+      )
+    ''');
+    batch.execute(
+      'CREATE INDEX idx_ai_cache_expires ON ai_cache(expires_at DESC)',
+    );
+    batch.execute('''
+      CREATE TABLE shopping_list (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        key TEXT,
+        quantity TEXT,
+        checked INTEGER NOT NULL DEFAULT 0,
+        recipe_id TEXT,
+        recipe_title TEXT,
+        created_at INTEGER NOT NULL
+      )
+    ''');
+    batch.execute(
+      'CREATE INDEX idx_shopping_created ON shopping_list(created_at DESC)',
+    );
     batch.execute("INSERT INTO profile (id) VALUES (1)");
     await batch.commit(noResult: true);
   }
@@ -164,6 +191,35 @@ class DatabaseHelper {
       await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_hidden_created '
         'ON hidden_recipes(created_at DESC)',
+      );
+    }
+    if (oldVersion < 3) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS ai_cache (
+          cache_key TEXT PRIMARY KEY,
+          kind TEXT NOT NULL,
+          value TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          expires_at INTEGER NOT NULL
+        )
+      ''');
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_ai_cache_expires ON ai_cache(expires_at DESC)',
+      );
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS shopping_list (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          key TEXT,
+          quantity TEXT,
+          checked INTEGER NOT NULL DEFAULT 0,
+          recipe_id TEXT,
+          recipe_title TEXT,
+          created_at INTEGER NOT NULL
+        )
+      ''');
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_shopping_created ON shopping_list(created_at DESC)',
       );
     }
   }

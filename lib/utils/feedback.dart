@@ -5,6 +5,10 @@ import 'package:flutter/material.dart';
 /// Cuando la acción ocurre después de una espera, se puede entregar el
 /// [ScaffoldMessengerState] capturado antes del `await` para no reutilizar un
 /// [BuildContext] fuera de su marco seguro.
+void showAppSnackBar(BuildContext context, String message) {
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+}
+
 void showUndoSnackBar(
   BuildContext? context, {
   ScaffoldMessengerState? messenger,

@@ -9,6 +9,7 @@ import 'package:whatcanicook/screens/manual_ingredients_screen.dart';
 import 'package:whatcanicook/screens/recipe_detail_screen.dart';
 import 'package:whatcanicook/screens/scan_result_screen.dart';
 import 'package:whatcanicook/screens/settings_screen.dart';
+import 'package:whatcanicook/screens/shopping_list_screen.dart';
 import 'package:whatcanicook/screens/splash_screen.dart';
 
 class WhatCanICookApp extends StatelessWidget {
@@ -29,6 +30,7 @@ class WhatCanICookApp extends StatelessWidget {
         AppRoutes.manualIngredients: (_) => const ManualIngredientsScreen(),
         AppRoutes.history: (_) => const HistoryScreen(),
         AppRoutes.settings: (_) => const SettingsScreen(),
+        AppRoutes.shoppingList: (_) => const ShoppingListScreen(),
       },
       onGenerateRoute: (settings) {
         switch (settings.name) {

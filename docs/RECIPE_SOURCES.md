@@ -2,7 +2,7 @@
 
 Catálogo: `assets/data/recipes.json` · Verificado: **2026-11-21** · Fuente general: [MyPlate — USDA](https://www.myplate.gov/recipes).
 
-La app **no genera recetas con IA**. Solo recomienda recetas transcritas de páginas oficiales. Cada registro conserva `sourceUrl` y `originalSource`. Los tiempos y valores nutricionales son los publicados por la fuente cuando estaban disponibles. Las etiquetas (`tags`) y la dificultad son estimaciones de la app y llevan `difficultyIsEstimated: true`.
+La app **no inventa recetas con IA**. Gemini puede ordenar y seleccionar IDs de este catálogo cerrado, pero el backend valida cada ID y devuelve la receta transcrita de la página oficial. Cada registro conserva `sourceUrl` y `originalSource`. Los tiempos y valores nutricionales son los publicados por la fuente cuando estaban disponibles. Las etiquetas (`tags`) y la dificultad son estimaciones de la app y llevan `difficultyIsEstimated: true`.
 
 | # | Receta en la app | Título original | Fuente oficial | Fuente original acreditada por MyPlate |
 | --- | --- | --- | --- | --- |

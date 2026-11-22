@@ -18,17 +18,46 @@
       "difficulty": "Media",
       "difficultyIsEstimated": true,
       "servings": 4,
-      "tags": ["desayuno", "vegetariana", "alta_en_proteinas", "saludable"],
-      "imageUrl": null,
+      "tags": [
+        "desayuno",
+        "vegetariana",
+        "alta_en_proteinas",
+        "saludable"
+      ],
+      "imageUrl": "assets/images/recipes/myplate-huevos-col-rizada-batata.jpg",
       "ingredients": [
-        { "key": "papa_dulce", "quantityText": "1 grande (pulpa naranja)" },
-        { "key": "col_rizada", "quantityText": "2 tazas, picada" },
-        { "key": "aceite", "quantityText": "1 cucharada, dividida" },
-        { "key": "agua", "quantityText": "1 1/2 tazas" },
-        { "key": "leche", "quantityText": "1 taza de leche descremada" },
-        { "key": "semola_maiz", "quantityText": "3/4 taza, de cocción rápida" },
-        { "key": "sal", "quantityText": "1/4 cucharadita" },
-        { "key": "huevo", "quantityText": "4 huevos" }
+        {
+          "key": "papa_dulce",
+          "quantityText": "1 grande (pulpa naranja)"
+        },
+        {
+          "key": "col_rizada",
+          "quantityText": "2 tazas, picada"
+        },
+        {
+          "key": "aceite",
+          "quantityText": "1 cucharada, dividida"
+        },
+        {
+          "key": "agua",
+          "quantityText": "1 1/2 tazas"
+        },
+        {
+          "key": "leche",
+          "quantityText": "1 taza de leche descremada"
+        },
+        {
+          "key": "semola_maiz",
+          "quantityText": "3/4 taza, de cocción rápida"
+        },
+        {
+          "key": "sal",
+          "quantityText": "1/4 cucharadita"
+        },
+        {
+          "key": "huevo",
+          "quantityText": "4 huevos"
+        }
       ],
       "steps": [
         "Precalentar el horno a 350 °F (175 °C).",
@@ -41,7 +70,12 @@
         "Hacer 4 hundimientos en la mezcla con el dorso de una cuchara grande y colocar con cuidado un huevo en cada hundimiento.",
         "Hornear destapado 30 minutos hasta que los huevos estén cocidos. Dejar enfriar 10 minutos antes de servir."
       ],
-      "nutrition": { "calories": 182, "proteinG": 10, "carbsG": 16, "fatG": 9 },
+      "nutrition": {
+        "calories": 182,
+        "proteinG": 10,
+        "carbsG": 16,
+        "fatG": 9
+      },
       "verified": true
     },
     {
@@ -57,22 +91,67 @@
       "difficulty": "Media",
       "difficultyIsEstimated": true,
       "servings": 5,
-      "tags": ["comida", "cena", "vegetariana", "rapida", "saludable"],
-      "imageUrl": null,
+      "tags": [
+        "comida",
+        "cena",
+        "vegetariana",
+        "rapida",
+        "saludable"
+      ],
+      "imageUrl": "assets/images/recipes/myplate-taquitos-aguacate-frijol-negro.jpg",
       "ingredients": [
-        { "key": "aguacate", "quantityText": "1 maduro, partido, sin hueso y machacado" },
-        { "key": "frijol_negro", "quantityText": "1/2 taza, en lata y enjuagado (bajo en sodio)" },
-        { "key": "comino", "quantityText": "1/2 cucharada" },
-        { "key": "ajo_polvo", "quantityText": "1 cucharadita" },
-        { "key": "sal", "quantityText": "1/2 cucharadita" },
-        { "key": "tortilla", "quantityText": "10 tortillas de maíz de 6 pulgadas" },
-        { "key": "tomate", "quantityText": "1 taza de tomates cherry, picados" },
-        { "key": "pimiento", "quantityText": "1/2 taza de pimiento rojo o amarillo, picado" },
-        { "key": "jalapeno", "quantityText": "1 cucharada, fresco, sin semillas y picado" },
-        { "key": "cebolla", "quantityText": "1 cucharada, picada" },
-        { "key": "limon_zumo", "quantityText": "1 cucharada de jugo de limón" },
-        { "key": "cilantro", "quantityText": "2 cucharadas de hojas frescas, picadas" },
-        { "key": "yogurt", "quantityText": "1/2 taza de yogur griego natural descremado (4 oz)" }
+        {
+          "key": "aguacate",
+          "quantityText": "1 maduro, partido, sin hueso y machacado"
+        },
+        {
+          "key": "frijol_negro",
+          "quantityText": "1/2 taza, en lata y enjuagado (bajo en sodio)"
+        },
+        {
+          "key": "comino",
+          "quantityText": "1/2 cucharada"
+        },
+        {
+          "key": "ajo_polvo",
+          "quantityText": "1 cucharadita"
+        },
+        {
+          "key": "sal",
+          "quantityText": "1/2 cucharadita"
+        },
+        {
+          "key": "tortilla",
+          "quantityText": "10 tortillas de maíz de 6 pulgadas"
+        },
+        {
+          "key": "tomate",
+          "quantityText": "1 taza de tomates cherry, picados"
+        },
+        {
+          "key": "pimiento",
+          "quantityText": "1/2 taza de pimiento rojo o amarillo, picado"
+        },
+        {
+          "key": "jalapeno",
+          "quantityText": "1 cucharada, fresco, sin semillas y picado"
+        },
+        {
+          "key": "cebolla",
+          "quantityText": "1 cucharada, picada"
+        },
+        {
+          "key": "limon_zumo",
+          "quantityText": "1 cucharada de jugo de limón"
+        },
+        {
+          "key": "cilantro",
+          "quantityText": "2 cucharadas de hojas frescas, picadas"
+        },
+        {
+          "key": "yogurt",
+          "quantityText": "1/2 taza de yogur griego natural descremado (4 oz)"
+        }
       ],
       "steps": [
         "Lavarse las manos con agua y jabón.",
@@ -82,7 +161,12 @@
         "Mientras se cocinan, mezclar en un tazón pequeño los tomates cherry, el pimiento, el jalapeño, la cebolla, el cilantro y el jugo de limón para hacer pico de gallo fresco.",
         "Cuando los taquitos estén dorados y crujientes, retirarlos y cubrirlos con el pico de gallo y el yogur griego."
       ],
-      "nutrition": { "calories": 181, "proteinG": 7, "carbsG": 27, "fatG": 6 },
+      "nutrition": {
+        "calories": 181,
+        "proteinG": 7,
+        "carbsG": 27,
+        "fatG": 6
+      },
       "verified": true
     },
     {
@@ -98,15 +182,39 @@
       "difficulty": "Fácil",
       "difficultyIsEstimated": true,
       "servings": 4,
-      "tags": ["comida", "cena", "vegetariana", "rapida", "alta_en_proteinas"],
-      "imageUrl": null,
+      "tags": [
+        "comida",
+        "cena",
+        "vegetariana",
+        "rapida",
+        "alta_en_proteinas"
+      ],
+      "imageUrl": "assets/images/recipes/myplate-quesadilla-frijol-rojo.jpg",
       "ingredients": [
-        { "key": "tortilla_trigo", "quantityText": "4 tortillas integrales de 8 pulgadas" },
-        { "key": "espinaca", "quantityText": "1 taza congelada, descongelada y escurrida" },
-        { "key": "queso", "quantityText": "1/2 taza de queso Monterey Jack o Cheddar rallado" },
-        { "key": "aguacate", "quantityText": "1, pelado, sin hueso y picado" },
-        { "key": "frijol", "quantityText": "1 lata de 15.5 oz de frijol rojo, escurrido y enjuagado" },
-        { "key": "ajo_polvo", "quantityText": "Opcional: ajo en polvo o hierbas secas" }
+        {
+          "key": "tortilla_trigo",
+          "quantityText": "4 tortillas integrales de 8 pulgadas"
+        },
+        {
+          "key": "espinaca",
+          "quantityText": "1 taza congelada, descongelada y escurrida"
+        },
+        {
+          "key": "queso",
+          "quantityText": "1/2 taza de queso Monterey Jack o Cheddar rallado"
+        },
+        {
+          "key": "aguacate",
+          "quantityText": "1, pelado, sin hueso y picado"
+        },
+        {
+          "key": "frijol",
+          "quantityText": "1 lata de 15.5 oz de frijol rojo, escurrido y enjuagado"
+        },
+        {
+          "key": "ajo_polvo",
+          "quantityText": "Opcional: ajo en polvo o hierbas secas"
+        }
       ],
       "steps": [
         "Con un tenedor, machacar los frijoles en un tazón hasta que queden ligeramente grumosos. Agregar ajo en polvo o hierbas secas si se desea.",
@@ -120,7 +228,12 @@
         "Repetir con la quesadilla restante.",
         "Cortar cada quesadilla en cuartos y servir caliente."
       ],
-      "nutrition": { "calories": 359, "proteinG": 16, "carbsG": 43, "fatG": 15 },
+      "nutrition": {
+        "calories": 359,
+        "proteinG": 16,
+        "carbsG": 43,
+        "fatG": 15
+      },
       "verified": true
     },
     {
@@ -136,22 +249,67 @@
       "difficulty": "Media",
       "difficultyIsEstimated": true,
       "servings": 8,
-      "tags": ["comida", "cena", "vegetariana", "alta_en_proteinas", "economica"],
-      "imageUrl": null,
+      "tags": [
+        "comida",
+        "cena",
+        "vegetariana",
+        "alta_en_proteinas",
+        "economica"
+      ],
+      "imageUrl": "assets/images/recipes/myplate-frijoles-bronco.jpg",
       "ingredients": [
-        { "key": "aceite", "quantityText": "1 cucharada de aceite vegetal" },
-        { "key": "cebolla", "quantityText": "2 cebollas amarillas, peladas y picadas" },
-        { "key": "pimiento", "quantityText": "1 pimiento, sin semillas y picado" },
-        { "key": "jalapeno", "quantityText": "2 jalapeños, picados" },
-        { "key": "ajo", "quantityText": "4 dientes, pelados y picados" },
-        { "key": "oregano", "quantityText": "1 cucharada de orégano seco" },
-        { "key": "tomillo", "quantityText": "1 cucharada de tomillo seco" },
-        { "key": "chile_polvo", "quantityText": "1 cucharadita de chile en polvo" },
-        { "key": "frijol", "quantityText": "4 latas de 15.5 oz de frijoles variados (negros, rojos, blancos y garbanzos), escurridos" },
-        { "key": "frijol_negro", "quantityText": "Incluido en la mezcla de frijoles" },
-        { "key": "garbanzo", "quantityText": "Incluido en la mezcla de frijoles" },
-        { "key": "tomate_dados", "quantityText": "2 latas de 14.5 oz de tomates en cubos, con el líquido" },
-        { "key": "agua", "quantityText": "1 1/2 tazas (más 1/2 taza extra si espesa)" }
+        {
+          "key": "aceite",
+          "quantityText": "1 cucharada de aceite vegetal"
+        },
+        {
+          "key": "cebolla",
+          "quantityText": "2 cebollas amarillas, peladas y picadas"
+        },
+        {
+          "key": "pimiento",
+          "quantityText": "1 pimiento, sin semillas y picado"
+        },
+        {
+          "key": "jalapeno",
+          "quantityText": "2 jalapeños, picados"
+        },
+        {
+          "key": "ajo",
+          "quantityText": "4 dientes, pelados y picados"
+        },
+        {
+          "key": "oregano",
+          "quantityText": "1 cucharada de orégano seco"
+        },
+        {
+          "key": "tomillo",
+          "quantityText": "1 cucharada de tomillo seco"
+        },
+        {
+          "key": "chile_polvo",
+          "quantityText": "1 cucharadita de chile en polvo"
+        },
+        {
+          "key": "frijol",
+          "quantityText": "4 latas de 15.5 oz de frijoles variados (negros, rojos, blancos y garbanzos), escurridos"
+        },
+        {
+          "key": "frijol_negro",
+          "quantityText": "Incluido en la mezcla de frijoles"
+        },
+        {
+          "key": "garbanzo",
+          "quantityText": "Incluido en la mezcla de frijoles"
+        },
+        {
+          "key": "tomate_dados",
+          "quantityText": "2 latas de 14.5 oz de tomates en cubos, con el líquido"
+        },
+        {
+          "key": "agua",
+          "quantityText": "1 1/2 tazas (más 1/2 taza extra si espesa)"
+        }
       ],
       "steps": [
         "Poner la olla a fuego medio y, cuando esté caliente, agregar el aceite.",
@@ -160,7 +318,12 @@
         "Servir de inmediato o, una vez frío, guardar en un recipiente. Refrigerar hasta 2 días.",
         "Adornar con cilantro o yogur natural bajo en grasa."
       ],
-      "nutrition": { "calories": 237, "proteinG": 13, "carbsG": 42, "fatG": 3 },
+      "nutrition": {
+        "calories": 237,
+        "proteinG": 13,
+        "carbsG": 42,
+        "fatG": 3
+      },
       "verified": true
     },
     {
@@ -176,15 +339,40 @@
       "difficulty": "Fácil",
       "difficultyIsEstimated": true,
       "servings": 4,
-      "tags": ["comida", "cena", "vegetariana", "saludable", "baja_en_calorias", "rapida"],
-      "imageUrl": null,
+      "tags": [
+        "comida",
+        "cena",
+        "vegetariana",
+        "saludable",
+        "baja_en_calorias",
+        "rapida"
+      ],
+      "imageUrl": "assets/images/recipes/myplate-verduras-citricas.jpg",
       "ingredients": [
-        { "key": "calabacin", "quantityText": "4 tazas de verduras mixtas (por ejemplo calabacín, maíz y tomates)" },
-        { "key": "maiz", "quantityText": "Incluido en la mezcla de verduras" },
-        { "key": "tomate", "quantityText": "Incluido en la mezcla de verduras" },
-        { "key": "limon_zumo", "quantityText": "2 cucharadas de jugo de limón" },
-        { "key": "aceite", "quantityText": "1/2 cucharada de aceite de oliva" },
-        { "key": "oregano", "quantityText": "1/2 cucharadita de orégano fresco picado" }
+        {
+          "key": "calabacin",
+          "quantityText": "4 tazas de verduras mixtas (por ejemplo calabacín, maíz y tomates)"
+        },
+        {
+          "key": "maiz",
+          "quantityText": "Incluido en la mezcla de verduras"
+        },
+        {
+          "key": "tomate",
+          "quantityText": "Incluido en la mezcla de verduras"
+        },
+        {
+          "key": "limon_zumo",
+          "quantityText": "2 cucharadas de jugo de limón"
+        },
+        {
+          "key": "aceite",
+          "quantityText": "1/2 cucharada de aceite de oliva"
+        },
+        {
+          "key": "oregano",
+          "quantityText": "1/2 cucharadita de orégano fresco picado"
+        }
       ],
       "steps": [
         "Lavarse las manos con agua y jabón.",
@@ -194,7 +382,12 @@
         "Verter la mezcla sobre las verduras frías y mezclar bien.",
         "Servir."
       ],
-      "nutrition": { "calories": 135, "proteinG": 5, "carbsG": 24, "fatG": 2 },
+      "nutrition": {
+        "calories": 135,
+        "proteinG": 5,
+        "carbsG": 24,
+        "fatG": 2
+      },
       "verified": true
     },
     {
@@ -210,18 +403,50 @@
       "difficulty": "Media",
       "difficultyIsEstimated": true,
       "servings": 4,
-      "tags": ["comida", "cena", "alta_en_proteinas", "economica"],
-      "imageUrl": null,
+      "tags": [
+        "comida",
+        "cena",
+        "alta_en_proteinas",
+        "economica"
+      ],
+      "imageUrl": "assets/images/recipes/myplate-sarten-papa-toscana.jpg",
       "ingredients": [
-        { "key": "papa", "quantityText": "10 papas rojas pequeñas" },
-        { "key": "sal", "quantityText": "1/2 cucharadita" },
-        { "key": "pimienta", "quantityText": "1/4 cucharadita" },
-        { "key": "pollo", "quantityText": "1 libra de piezas de pollo" },
-        { "key": "aceite", "quantityText": "2 cucharadas de aceite de oliva extra virgen, divididas" },
-        { "key": "romero", "quantityText": "1 cucharada de romero fresco picado (o 1 cucharadita seco)" },
-        { "key": "ajo", "quantityText": "4 dientes, picados" },
-        { "key": "judia_verde", "quantityText": "2 1/2 tazas de judías verdes congeladas, descongeladas" },
-        { "key": "limon", "quantityText": "1 limón, rallado y exprimido" }
+        {
+          "key": "papa",
+          "quantityText": "10 papas rojas pequeñas"
+        },
+        {
+          "key": "sal",
+          "quantityText": "1/2 cucharadita"
+        },
+        {
+          "key": "pimienta",
+          "quantityText": "1/4 cucharadita"
+        },
+        {
+          "key": "pollo",
+          "quantityText": "1 libra de piezas de pollo"
+        },
+        {
+          "key": "aceite",
+          "quantityText": "2 cucharadas de aceite de oliva extra virgen, divididas"
+        },
+        {
+          "key": "romero",
+          "quantityText": "1 cucharada de romero fresco picado (o 1 cucharadita seco)"
+        },
+        {
+          "key": "ajo",
+          "quantityText": "4 dientes, picados"
+        },
+        {
+          "key": "judia_verde",
+          "quantityText": "2 1/2 tazas de judías verdes congeladas, descongeladas"
+        },
+        {
+          "key": "limon",
+          "quantityText": "1 limón, rallado y exprimido"
+        }
       ],
       "steps": [
         "Cortar cada papa en 4 gajos. Colocar en un tazón apto para microondas, sazonar con sal y pimienta. Cocinar a potencia alta 4 minutos, revolver y cocinar 4 minutos más.",
@@ -230,7 +455,12 @@
         "Agregar el aceite restante y las papas; cocinar y revolver 5 minutos más para dorar las papas y terminar de cocinar el pollo.",
         "Incorporar el romero, el ajo, las judías verdes, la ralladura y el jugo de limón. Cocinar unos minutos más para calentar. Ajustar sal y pimienta al gusto."
       ],
-      "nutrition": { "calories": 331, "proteinG": 28, "carbsG": 33, "fatG": 10 },
+      "nutrition": {
+        "calories": 331,
+        "proteinG": 28,
+        "carbsG": 33,
+        "fatG": 10
+      },
       "verified": true
     },
     {
@@ -246,16 +476,42 @@
       "difficulty": "Fácil",
       "difficultyIsEstimated": true,
       "servings": 8,
-      "tags": ["comida", "cena", "alta_en_proteinas", "economica"],
-      "imageUrl": null,
+      "tags": [
+        "comida",
+        "cena",
+        "alta_en_proteinas",
+        "economica"
+      ],
+      "imageUrl": "assets/images/recipes/myplate-cazuela-frijoles.jpg",
       "ingredients": [
-        { "key": "carne_molida", "quantityText": "1 libra de carne molida magra (90%)" },
-        { "key": "cebolla", "quantityText": "1 cebolla grande, picada" },
-        { "key": "azucar_morena", "quantityText": "1/4 taza, compacta" },
-        { "key": "ketchup", "quantityText": "1/2 taza" },
-        { "key": "vinagre", "quantityText": "2 cucharadas" },
-        { "key": "pimienta", "quantityText": "1/2 cucharadita de pimienta negra" },
-        { "key": "frijol", "quantityText": "2 latas de 15.5 oz de frijol rojo + 1 lata de 15 oz de frijoles con cerdo + 2 latas de 15.5 oz de frijoles grandes blancos" }
+        {
+          "key": "carne_molida",
+          "quantityText": "1 libra de carne molida magra (90%)"
+        },
+        {
+          "key": "cebolla",
+          "quantityText": "1 cebolla grande, picada"
+        },
+        {
+          "key": "azucar_morena",
+          "quantityText": "1/4 taza, compacta"
+        },
+        {
+          "key": "ketchup",
+          "quantityText": "1/2 taza"
+        },
+        {
+          "key": "vinagre",
+          "quantityText": "2 cucharadas"
+        },
+        {
+          "key": "pimienta",
+          "quantityText": "1/2 cucharadita de pimienta negra"
+        },
+        {
+          "key": "frijol",
+          "quantityText": "2 latas de 15.5 oz de frijol rojo + 1 lata de 15 oz de frijoles con cerdo + 2 latas de 15.5 oz de frijoles grandes blancos"
+        }
       ],
       "steps": [
         "Lavarse las manos con agua y jabón.",
@@ -265,7 +521,12 @@
         "Colocar en una fuente para horno.",
         "Hornear a 350 °F (175 °C) durante 30 minutos."
       ],
-      "nutrition": { "calories": 343, "proteinG": 24, "carbsG": 52, "fatG": 5 },
+      "nutrition": {
+        "calories": 343,
+        "proteinG": 24,
+        "carbsG": 52,
+        "fatG": 5
+      },
       "verified": true
     },
     {
@@ -281,14 +542,37 @@
       "difficulty": "Fácil",
       "difficultyIsEstimated": true,
       "servings": 4,
-      "tags": ["comida", "cena", "vegetariana", "saludable", "baja_en_calorias", "economica", "rapida"],
-      "imageUrl": null,
+      "tags": [
+        "comida",
+        "cena",
+        "vegetariana",
+        "saludable",
+        "baja_en_calorias",
+        "economica",
+        "rapida"
+      ],
+      "imageUrl": "assets/images/recipes/myplate-medallon-maiz-frijol.jpg",
       "ingredients": [
-        { "key": "cebolla", "quantityText": "1/4 taza, picada" },
-        { "key": "maiz", "quantityText": "1 taza de maíz en lata, bajo en sodio" },
-        { "key": "frijol", "quantityText": "3/4 taza de frijol rojo cocido" },
-        { "key": "chile_polvo", "quantityText": "3/4 cucharadita de chile en polvo" },
-        { "key": "chile_polvo", "quantityText": "1/4 cucharadita de hojuelas de pimiento rojo (opcional)" }
+        {
+          "key": "cebolla",
+          "quantityText": "1/4 taza, picada"
+        },
+        {
+          "key": "maiz",
+          "quantityText": "1 taza de maíz en lata, bajo en sodio"
+        },
+        {
+          "key": "frijol",
+          "quantityText": "3/4 taza de frijol rojo cocido"
+        },
+        {
+          "key": "chile_polvo",
+          "quantityText": "3/4 cucharadita de chile en polvo"
+        },
+        {
+          "key": "chile_polvo",
+          "quantityText": "1/4 cucharadita de hojuelas de pimiento rojo (opcional)"
+        }
       ],
       "steps": [
         "Lavarse las manos con agua y jabón.",
@@ -298,7 +582,12 @@
         "Agregar el maíz, los frijoles, el chile en polvo y las hojuelas de pimiento rojo a la cebolla.",
         "Cocinar a fuego bajo unos 10 minutos."
       ],
-      "nutrition": { "calories": 75, "proteinG": 4, "carbsG": 15, "fatG": 1 },
+      "nutrition": {
+        "calories": 75,
+        "proteinG": 4,
+        "carbsG": 15,
+        "fatG": 1
+      },
       "verified": true
     },
     {
@@ -314,18 +603,48 @@
       "difficulty": "Media",
       "difficultyIsEstimated": true,
       "servings": 4,
-      "tags": ["desayuno", "alta_en_proteinas"],
-      "imageUrl": null,
+      "tags": [
+        "desayuno",
+        "alta_en_proteinas"
+      ],
+      "imageUrl": "assets/images/recipes/myplate-omelet-cebollin.jpg",
       "ingredients": [
-        { "key": "papa", "quantityText": "1 lata de 15 oz de papas en rodajas, escurridas" },
-        { "key": "aceite", "quantityText": "1 cucharada de aceite vegetal" },
-        { "key": "huevo", "quantityText": "1 huevo entero" },
-        { "key": "huevo", "quantityText": "3 claras de huevo" },
-        { "key": "leche", "quantityText": "3 cucharadas de leche descremada (1%)" },
-        { "key": "sal", "quantityText": "1/4 cucharadita" },
-        { "key": "jamon", "quantityText": "1/2 taza de jamón picado" },
-        { "key": "tomate_dados", "quantityText": "1/2 lata de tomates sin sal, escurrida (aprox. 8 oz)" },
-        { "key": "cebollin", "quantityText": "1 cucharada de cebollín picado" }
+        {
+          "key": "papa",
+          "quantityText": "1 lata de 15 oz de papas en rodajas, escurridas"
+        },
+        {
+          "key": "aceite",
+          "quantityText": "1 cucharada de aceite vegetal"
+        },
+        {
+          "key": "huevo",
+          "quantityText": "1 huevo entero"
+        },
+        {
+          "key": "huevo",
+          "quantityText": "3 claras de huevo"
+        },
+        {
+          "key": "leche",
+          "quantityText": "3 cucharadas de leche descremada (1%)"
+        },
+        {
+          "key": "sal",
+          "quantityText": "1/4 cucharadita"
+        },
+        {
+          "key": "jamon",
+          "quantityText": "1/2 taza de jamón picado"
+        },
+        {
+          "key": "tomate_dados",
+          "quantityText": "1/2 lata de tomates sin sal, escurrida (aprox. 8 oz)"
+        },
+        {
+          "key": "cebollin",
+          "quantityText": "1 cucharada de cebollín picado"
+        }
       ],
       "steps": [
         "Abrir y escurrir la lata de papas. Cortar las rodajas en tiras.",
@@ -352,16 +671,43 @@
       "difficulty": "Fácil",
       "difficultyIsEstimated": true,
       "servings": 4,
-      "tags": ["comida", "cena", "vegetariana", "economica", "rapida"],
-      "imageUrl": null,
+      "tags": [
+        "comida",
+        "cena",
+        "vegetariana",
+        "economica",
+        "rapida"
+      ],
+      "imageUrl": "assets/images/recipes/myplate-macarrones-frijol.jpg",
       "ingredients": [
-        { "key": "ajo", "quantityText": "4 dientes" },
-        { "key": "pimiento", "quantityText": "1 pimiento (verde, rojo, amarillo o naranja)" },
-        { "key": "aceite", "quantityText": "2 cucharadas de aceite de cocina" },
-        { "key": "tomate_dados", "quantityText": "1 lata de 14.5 oz de tomates en cubos, bajos en sodio" },
-        { "key": "chile_polvo", "quantityText": "1/2 cucharadita de hojuelas de pimiento rojo, trituradas" },
-        { "key": "frijol", "quantityText": "1 lata de 15.5 oz de frijoles bajos en sodio, escurridos y enjuagados" },
-        { "key": "pasta", "quantityText": "2 tazas de macarrones cocidos, sin sal ni grasa añadida" }
+        {
+          "key": "ajo",
+          "quantityText": "4 dientes"
+        },
+        {
+          "key": "pimiento",
+          "quantityText": "1 pimiento (verde, rojo, amarillo o naranja)"
+        },
+        {
+          "key": "aceite",
+          "quantityText": "2 cucharadas de aceite de cocina"
+        },
+        {
+          "key": "tomate_dados",
+          "quantityText": "1 lata de 14.5 oz de tomates en cubos, bajos en sodio"
+        },
+        {
+          "key": "chile_polvo",
+          "quantityText": "1/2 cucharadita de hojuelas de pimiento rojo, trituradas"
+        },
+        {
+          "key": "frijol",
+          "quantityText": "1 lata de 15.5 oz de frijoles bajos en sodio, escurridos y enjuagados"
+        },
+        {
+          "key": "pasta",
+          "quantityText": "2 tazas de macarrones cocidos, sin sal ni grasa añadida"
+        }
       ],
       "steps": [
         "Lavarse las manos con agua tibia y jabón.",
@@ -387,16 +733,44 @@
       "difficulty": "Fácil",
       "difficultyIsEstimated": true,
       "servings": 6,
-      "tags": ["comida", "cena", "vegetariana", "saludable", "alta_en_proteinas", "economica"],
-      "imageUrl": null,
+      "tags": [
+        "comida",
+        "cena",
+        "vegetariana",
+        "saludable",
+        "alta_en_proteinas",
+        "economica"
+      ],
+      "imageUrl": "assets/images/recipes/myplate-sopa-lentejas-olla-lenta.jpg",
       "ingredients": [
-        { "key": "agua", "quantityText": "6 tazas" },
-        { "key": "perejil", "quantityText": "1/4 taza de perejil fresco picado (o 2 cucharadas seco)" },
-        { "key": "caldo_res", "quantityText": "2 cucharaditas de caldo de res en polvo (o 2 cubos)" },
-        { "key": "lenteja", "quantityText": "1 1/2 tazas de lentejas secas" },
-        { "key": "zanahoria", "quantityText": "2 zanahorias medianas, en rodajas" },
-        { "key": "cebolla", "quantityText": "1 cebolla mediana, picada" },
-        { "key": "apio", "quantityText": "2 tallos de apio medianos, en rodajas" }
+        {
+          "key": "agua",
+          "quantityText": "6 tazas"
+        },
+        {
+          "key": "perejil",
+          "quantityText": "1/4 taza de perejil fresco picado (o 2 cucharadas seco)"
+        },
+        {
+          "key": "caldo_res",
+          "quantityText": "2 cucharaditas de caldo de res en polvo (o 2 cubos)"
+        },
+        {
+          "key": "lenteja",
+          "quantityText": "1 1/2 tazas de lentejas secas"
+        },
+        {
+          "key": "zanahoria",
+          "quantityText": "2 zanahorias medianas, en rodajas"
+        },
+        {
+          "key": "cebolla",
+          "quantityText": "1 cebolla mediana, picada"
+        },
+        {
+          "key": "apio",
+          "quantityText": "2 tallos de apio medianos, en rodajas"
+        }
       ],
       "steps": [
         "Lavarse las manos con agua y jabón.",
@@ -404,7 +778,12 @@
         "Cocinar a temperatura baja de 8 a 10 horas o a temperatura alta de 4 a 5 horas.",
         "Servir caliente con galletas de soda o pan."
       ],
-      "nutrition": { "calories": 183, "proteinG": 13, "carbsG": 33, "fatG": 1 },
+      "nutrition": {
+        "calories": 183,
+        "proteinG": 13,
+        "carbsG": 33,
+        "fatG": 1
+      },
       "verified": true
     },
     {
@@ -420,17 +799,47 @@
       "difficulty": "Fácil",
       "difficultyIsEstimated": true,
       "servings": 10,
-      "tags": ["comida", "cena", "vegetariana", "economica", "rapida"],
-      "imageUrl": null,
+      "tags": [
+        "comida",
+        "cena",
+        "vegetariana",
+        "economica",
+        "rapida"
+      ],
+      "imageUrl": "assets/images/recipes/myplate-cazuela-caribeana.jpg",
       "ingredients": [
-        { "key": "cebolla", "quantityText": "1 cebolla mediana, picada" },
-        { "key": "pimiento", "quantityText": "1/2 pimiento verde, picado" },
-        { "key": "aceite", "quantityText": "1 cucharada de aceite de canola" },
-        { "key": "tomate_estofado", "quantityText": "1 lata de 14.5 oz de tomates estofados, bajos en sodio" },
-        { "key": "frijol_negro", "quantityText": "1 lata de 15.5 oz de frijol negro, bajo en sodio" },
-        { "key": "oregano", "quantityText": "1 cucharadita de orégano" },
-        { "key": "ajo_polvo", "quantityText": "1/2 cucharadita de ajo en polvo" },
-        { "key": "arroz", "quantityText": "1 1/2 tazas de arroz integral instantáneo, sin cocinar" }
+        {
+          "key": "cebolla",
+          "quantityText": "1 cebolla mediana, picada"
+        },
+        {
+          "key": "pimiento",
+          "quantityText": "1/2 pimiento verde, picado"
+        },
+        {
+          "key": "aceite",
+          "quantityText": "1 cucharada de aceite de canola"
+        },
+        {
+          "key": "tomate_estofado",
+          "quantityText": "1 lata de 14.5 oz de tomates estofados, bajos en sodio"
+        },
+        {
+          "key": "frijol_negro",
+          "quantityText": "1 lata de 15.5 oz de frijol negro, bajo en sodio"
+        },
+        {
+          "key": "oregano",
+          "quantityText": "1 cucharadita de orégano"
+        },
+        {
+          "key": "ajo_polvo",
+          "quantityText": "1/2 cucharadita de ajo en polvo"
+        },
+        {
+          "key": "arroz",
+          "quantityText": "1 1/2 tazas de arroz integral instantáneo, sin cocinar"
+        }
       ],
       "steps": [
         "Lavarse las manos con agua y jabón.",
@@ -440,7 +849,12 @@
         "Bajar a fuego bajo y cocinar 5 minutos.",
         "Retirar del calor y dejar reposar 5 minutos."
       ],
-      "nutrition": { "calories": 182, "proteinG": 6, "carbsG": 34, "fatG": 3 },
+      "nutrition": {
+        "calories": 182,
+        "proteinG": 6,
+        "carbsG": 34,
+        "fatG": 3
+      },
       "verified": true
     },
     {
@@ -456,17 +870,47 @@
       "difficulty": "Media",
       "difficultyIsEstimated": true,
       "servings": 4,
-      "tags": ["desayuno", "comida", "vegetariana", "alta_en_proteinas", "saludable"],
-      "imageUrl": null,
+      "tags": [
+        "desayuno",
+        "comida",
+        "vegetariana",
+        "alta_en_proteinas",
+        "saludable"
+      ],
+      "imageUrl": "assets/images/recipes/myplate-frittata-jardin.jpg",
       "ingredients": [
-        { "key": "huevo", "quantityText": "4 huevos grandes" },
-        { "key": "pimienta", "quantityText": "1/4 cucharadita de pimienta negra molida" },
-        { "key": "sal", "quantityText": "1/4 cucharadita" },
-        { "key": "papa", "quantityText": "2 papas rojas medianas, sin pelar" },
-        { "key": "aceite", "quantityText": "1/2 cucharada de aceite de oliva" },
-        { "key": "col_rizada", "quantityText": "4 tazas de col rizada italiana u otra variedad" },
-        { "key": "cebolla", "quantityText": "1/4 taza de cebolla picada" },
-        { "key": "pimiento", "quantityText": "1/2 pimiento rojo, picado" }
+        {
+          "key": "huevo",
+          "quantityText": "4 huevos grandes"
+        },
+        {
+          "key": "pimienta",
+          "quantityText": "1/4 cucharadita de pimienta negra molida"
+        },
+        {
+          "key": "sal",
+          "quantityText": "1/4 cucharadita"
+        },
+        {
+          "key": "papa",
+          "quantityText": "2 papas rojas medianas, sin pelar"
+        },
+        {
+          "key": "aceite",
+          "quantityText": "1/2 cucharada de aceite de oliva"
+        },
+        {
+          "key": "col_rizada",
+          "quantityText": "4 tazas de col rizada italiana u otra variedad"
+        },
+        {
+          "key": "cebolla",
+          "quantityText": "1/4 taza de cebolla picada"
+        },
+        {
+          "key": "pimiento",
+          "quantityText": "1/2 pimiento rojo, picado"
+        }
       ],
       "steps": [
         "Batir los huevos, la pimienta y la sal en un tazón grande; reservar.",
@@ -476,7 +920,12 @@
         "Verter la mezcla de huevo y verduras en la misma sartén. Cocinar a fuego bajo-medio hasta que los huevos estén casi cuajados, unos 8 a 10 minutos.",
         "Tapar y dejar reposar hasta que los huevos estén completamente cuajados, unos 5 minutos. Los platos con huevo deben alcanzar 160 °F (71 °C)."
       ],
-      "nutrition": { "calories": 183, "proteinG": 9, "carbsG": 21, "fatG": 7 },
+      "nutrition": {
+        "calories": 183,
+        "proteinG": 9,
+        "carbsG": 21,
+        "fatG": 7
+      },
       "verified": true
     }
   ]

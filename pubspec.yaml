@@ -20,6 +20,7 @@ dependencies:
   url_launcher: ^6.3.2
   cached_network_image: ^3.4.1
   intl: ^0.20.2
+  share_plus: ^12.0.0
 
 dev_dependencies:
   flutter_test:
@@ -31,9 +32,9 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: false
-  image_path: "assets/icons/app_icon.png"
-  adaptive_icon_background: "#FFF6EC"
-  adaptive_icon_foreground: "assets/icons/app_icon_foreground.png"
+  image_path: "assets/icons/app_icon_dark.png"
+  adaptive_icon_background: "#161618"
+  adaptive_icon_foreground: "assets/icons/app_icon_foreground_dark.png"
   min_sdk_android: 21
 
 flutter:
@@ -43,4 +44,7 @@ flutter:
     - assets/data/recipes.json
     - assets/logos/logo.png
     - assets/icons/app_icon.png
+    - assets/icons/app_icon_dark.png
+    - assets/icons/app_icon_foreground_dark.png
     - assets/images/splash.png
+    - assets/images/recipes/

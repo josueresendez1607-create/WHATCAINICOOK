@@ -67,7 +67,8 @@ class VisionService {
         } catch (_) {}
         return AppFailure(
           serverMessage ??
-              'El servidor de IA respondió con el código ${response.statusCode}.',
+              'No se pudo analizar la foto en este momento. '
+                  'Puedes agregar ingredientes manualmente.',
         );
       }
 
@@ -90,9 +91,15 @@ class VisionService {
         'Puedes agregar ingredientes manualmente.',
       );
     } on http.ClientException {
-      return const AppFailure('Error de red al enviar la imagen.');
-    } catch (error) {
-      return AppFailure('Error inesperado al analizar la imagen: $error');
+      return const AppFailure(
+        'No se pudo conectar con el servicio de IA. '
+        'Puedes agregar ingredientes manualmente.',
+      );
+    } catch (_) {
+      return const AppFailure(
+        'No se pudo analizar la foto en este momento. '
+        'Puedes agregar ingredientes manualmente.',
+      );
     }
   }
 

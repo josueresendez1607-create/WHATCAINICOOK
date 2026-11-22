@@ -46,7 +46,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
       if (mounted) {
         setState(() {
           _loading = false;
-          _message = 'No se pudo abrir la cámara o la galería: $error';
+          _message = 'No se pudo abrir la cámara o la galería.';
         });
       }
     }

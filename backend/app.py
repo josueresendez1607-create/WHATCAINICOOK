@@ -269,8 +269,8 @@ def _gemini_select(
             json=payload,
             timeout=15,
         )
-    except requests.RequestException as exc:
-        return [], {}, f"No se pudo contactar a Gemini: {type(exc).__name__}"
+    except requests.RequestException:
+        return [], {}, "No se pudo contactar al servicio de IA."
 
     if response.status_code != 200:
         return [], {}, f"Gemini devolvió HTTP {response.status_code}."
@@ -331,8 +331,8 @@ def health():
 def analyze_ingredients():
     if not API_KEY:
         return _error(
-            "El backend no tiene GEMINI_API_KEY configurada. "
-            "Copia .env.example a .env y agrega la clave del servidor.",
+            "El análisis de fotos no está disponible en este momento. "
+            "Puedes agregar ingredientes manualmente.",
             503,
         )
 
@@ -404,15 +404,55 @@ def analyze_ingredients():
             json=payload,
             timeout=45,
         )
-    except requests.RequestException as exc:
-        return _error(f"No se pudo contactar a Gemini: {type(exc).__name__}", 502)
+    except requests.RequestException:
+        return _error(
+            "No se pudo conectar con el servicio de IA. "
+            "Puedes agregar ingredientes manualmente.",
+            503,
+        )
 
     if response.status_code != 200:
+        upstream = response.status_code
+        if upstream == 429:
+            return _error(
+                "El servicio de IA está temporalmente saturado por límite de uso. "
+                "Intenta de nuevo más tarde o agrega ingredientes manualmente.",
+                503,
+                upstream_status=upstream,
+            )
+        if upstream in (400, 415):
+            return _error(
+                "No se pudo analizar la foto. Prueba con otra imagen clara de tus ingredientes "
+                "o agrégalos manualmente.",
+                502,
+                upstream_status=upstream,
+            )
+        if upstream in (401, 403):
+            return _error(
+                "El servicio de IA no está disponible en este momento. "
+                "Puedes agregar ingredientes manualmente.",
+                503,
+                upstream_status=upstream,
+            )
+        if upstream == 404:
+            return _error(
+                "El servicio de IA no está disponible en este momento. "
+                "Puedes agregar ingredientes manualmente.",
+                503,
+                upstream_status=upstream,
+            )
+        if upstream >= 500:
+            return _error(
+                "El servicio de IA tuvo un problema temporal. "
+                "Intenta de nuevo en unos momentos o agrega ingredientes manualmente.",
+                503,
+                upstream_status=upstream,
+            )
         return _error(
-            "Gemini rechazó la solicitud.",
+            "No se pudo analizar la foto en este momento. "
+            "Puedes agregar ingredientes manualmente.",
             502,
-            upstream_status=response.status_code,
-            detail=str(response.text)[:300],
+            upstream_status=upstream,
         )
 
     try:

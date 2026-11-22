@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatcanicook/core/routes.dart';
+import 'package:whatcanicook/core/theme.dart';
 import 'package:whatcanicook/providers/app_providers.dart';
+import 'package:whatcanicook/widgets/app_logo.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -36,23 +38,34 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image(
-              image: AssetImage('assets/images/splash.png'),
-              width: 280,
-              fit: BoxFit.contain,
-            ),
-            SizedBox(height: 28),
-            SizedBox(width: 180, child: LinearProgressIndicator(minHeight: 4)),
-            SizedBox(height: 14),
-            Text(
-              'Preparando tu cocina...',
-              style: TextStyle(color: Color(0xFF6F6560)),
-            ),
-          ],
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppLogo(height: 92),
+              SizedBox(height: 18),
+              Text(
+                'Descubre qué puedes cocinar hoy',
+                style: TextStyle(
+                  fontSize: 13,
+                  letterSpacing: 0.4,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              SizedBox(height: 34),
+              SizedBox(
+                width: 180,
+                child: LinearProgressIndicator(minHeight: 4),
+              ),
+              SizedBox(height: 14),
+              Text(
+                'Preparando tu cocina...',
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
         ),
       ),
     );

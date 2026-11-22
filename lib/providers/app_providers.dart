@@ -6,6 +6,7 @@ import 'package:whatcanicook/repositories/history_repository.dart';
 import 'package:whatcanicook/repositories/ingredient_repository.dart';
 import 'package:whatcanicook/repositories/profile_repository.dart';
 import 'package:whatcanicook/services/catalog_service.dart';
+import 'package:whatcanicook/services/recipe_generation_service.dart';
 import 'package:whatcanicook/services/vision_service.dart';
 
 final catalogServiceProvider = Provider((ref) => CatalogService());
@@ -14,6 +15,23 @@ final favoriteRepositoryProvider = Provider((ref) => FavoriteRepository());
 final historyRepositoryProvider = Provider((ref) => HistoryRepository());
 final profileRepositoryProvider = Provider((ref) => ProfileRepository());
 final visionServiceProvider = Provider((ref) => VisionService());
+final recipeGenerationServiceProvider = Provider(
+  (ref) => RecipeGenerationService(),
+);
+
+/// Categoría solicitada desde Home. RecipesScreen la consume y la limpia.
+final exploreCategoryProvider =
+    NotifierProvider<ExploreCategoryNotifier, String?>(
+      ExploreCategoryNotifier.new,
+    );
+
+class ExploreCategoryNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void set(String? category) => state = category;
+  void clear() => state = null;
+}
 
 final ingredientCatalogProvider = FutureProvider((ref) {
   return ref.watch(catalogServiceProvider).loadCatalog();
@@ -118,6 +136,11 @@ class HistoryNotifier extends AsyncNotifier<List<HistoryEntry>> {
     await ref
         .read(historyRepositoryProvider)
         .add(kind, value, recipeId: recipeId);
+    ref.invalidateSelf();
+  }
+
+  Future<void> remove(int id) async {
+    await ref.read(historyRepositoryProvider).remove(id);
     ref.invalidateSelf();
   }
 

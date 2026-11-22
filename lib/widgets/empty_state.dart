@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:whatcanicook/core/theme.dart';
 
 class EmptyState extends StatelessWidget {
   const EmptyState({
@@ -19,33 +20,38 @@ class EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+      padding: const EdgeInsets.symmetric(vertical: 38, horizontal: 28),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(22),
             decoration: BoxDecoration(
-              color: const Color(0xFFDFF0E2),
               shape: BoxShape.circle,
+              color: AppColors.card,
+              border: Border.all(color: AppColors.gold.withValues(alpha: 0.30)),
             ),
-            child: Icon(icon, size: 42, color: const Color(0xFF4E9E63)),
+            child: Icon(icon, size: 40, color: AppColors.gold),
           ),
           const SizedBox(height: 18),
           Text(
             title,
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            style: const TextStyle(
+              fontSize: 17,
               fontWeight: FontWeight.w800,
-              color: const Color(0xFF2B2422),
+              color: AppColors.textPrimary,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             message,
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium
-                ?.copyWith(color: const Color(0xFF6F6560)),
+            style: const TextStyle(
+              fontSize: 13,
+              height: 1.4,
+              color: AppColors.textSecondary,
+            ),
           ),
           if (actionLabel != null && onAction != null) ...[
             const SizedBox(height: 20),

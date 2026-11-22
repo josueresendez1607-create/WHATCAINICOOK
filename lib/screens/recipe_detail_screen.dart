@@ -1,20 +1,31 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:whatcanicook/core/async_value_ext.dart';
 import 'package:whatcanicook/core/theme.dart';
+import 'package:whatcanicook/models/ingredient.dart';
+import 'package:whatcanicook/models/ingredient_catalog.dart';
+import 'package:whatcanicook/models/recipe.dart';
 import 'package:whatcanicook/providers/app_providers.dart';
 import 'package:whatcanicook/services/recipe_matcher.dart';
 import 'package:whatcanicook/utils/normalization.dart';
+import 'package:whatcanicook/widgets/food_image.dart';
 
-class RecipeDetailScreen extends ConsumerWidget {
+class RecipeDetailScreen extends ConsumerStatefulWidget {
   const RecipeDetailScreen({super.key, required this.recipeId});
 
   final String recipeId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RecipeDetailScreen> createState() => _RecipeDetailScreenState();
+}
+
+class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
+  final Set<String> _recorded = {};
+
+  @override
+  Widget build(BuildContext context) {
     final recipesAsync = ref.watch(recipesProvider);
     final ingredientsAsync = ref.watch(ingredientsProvider);
     final favoritesAsync = ref.watch(favoritesProvider);
@@ -24,20 +35,35 @@ class RecipeDetailScreen extends ConsumerWidget {
       body: recipesAsync.when(
         data: (recipes) {
           final recipe = recipes
-              .where((item) => item.id == recipeId)
+              .where((item) => item.id == widget.recipeId)
               .firstOrNull;
           if (recipe == null) {
-            return const Center(child: Text('No se encontró la receta.'));
+            return const Center(
+              child: Text(
+                'No se encontró la receta.',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+            );
           }
+
+          if (_recorded.add(recipe.id)) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              ref
+                  .read(historyProvider.notifier)
+                  .add('receta', recipe.title, recipeId: recipe.id);
+            });
+          }
+
           final isFavorite =
               favoritesAsync.valueOrNull?.any((f) => f.recipeId == recipe.id) ??
               false;
-
-          final availableKeys =
-              ingredientsAsync.valueOrNull
-                  ?.map((ingredient) => ingredient.key ?? '')
-                  .toSet() ??
-              <String>{};
+          final catalog = catalogAsync.valueOrNull;
+          final availableKeys = <String>{
+            for (final ingredient
+                in ingredientsAsync.valueOrNull ?? const <Ingredient>[])
+              _keyFor(ingredient, catalog),
+          }..removeWhere((key) => key.isEmpty);
           final match = const RecipeMatcher()
               .match(recipes: [recipe], availableKeys: availableKeys)
               .first;
@@ -45,30 +71,45 @@ class RecipeDetailScreen extends ConsumerWidget {
           return CustomScrollView(
             slivers: [
               SliverAppBar(
-                expandedHeight: 230,
+                expandedHeight: 260,
                 pinned: true,
                 flexibleSpace: FlexibleSpaceBar(
-                  background: recipe.imageUrl == null
-                      ? Container(
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [AppColors.orange, AppColors.orangeDark],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
+                  background: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      FoodImage(
+                        imagePath: recipe.imageUrl,
+                        borderRadius: BorderRadius.zero,
+                        showBottomShade: true,
+                        semanticLabel: 'Fotografía de ${recipe.title}',
+                      ),
+                      const Positioned(
+                        left: 20,
+                        bottom: 18,
+                        right: 20,
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.verified_rounded,
+                              size: 16,
+                              color: AppColors.success,
                             ),
-                          ),
-                          child: const Center(
-                            child: Icon(
-                              Icons.restaurant_menu_rounded,
-                              size: 80,
-                              color: Colors.white,
+                            SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'Receta verificada',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
                             ),
-                          ),
-                        )
-                      : CachedNetworkImage(
-                          imageUrl: recipe.imageUrl!,
-                          fit: BoxFit.cover,
+                          ],
                         ),
+                      ),
+                    ],
+                  ),
                 ),
                 actions: [
                   IconButton(
@@ -77,116 +118,159 @@ class RecipeDetailScreen extends ConsumerWidget {
                         : 'Guardar en favoritos',
                     icon: Icon(
                       isFavorite ? Icons.favorite : Icons.favorite_border,
-                      color: isFavorite ? AppColors.error : Colors.white,
+                      color: isFavorite
+                          ? AppColors.danger
+                          : AppColors.goldBright,
                     ),
                     onPressed: () =>
                         ref.read(favoritesProvider.notifier).toggle(recipe.id),
+                  ),
+                  IconButton(
+                    tooltip: 'Compartir receta',
+                    icon: const Icon(Icons.share_outlined),
+                    onPressed: () => _share(recipe),
                   ),
                 ],
               ),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 44),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.verified,
-                            size: 18,
-                            color: AppColors.green,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Fuente verificada: ${recipe.sourceName}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.green,
-                            ),
-                          ),
-                        ],
-                      ),
+                      _SectionTitle(title: recipe.sourceName),
                       const SizedBox(height: 8),
                       Text(
                         recipe.title,
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(
-                              fontWeight: FontWeight.w900,
-                              color: AppColors.charcoal,
-                            ),
+                        style: const TextStyle(
+                          fontSize: 25,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.textPrimary,
+                          height: 1.18,
+                        ),
                       ),
                       if (recipe.originalTitle.isNotEmpty) ...[
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 5),
                         Text(
                           'Título original: ${recipe.originalTitle}',
                           style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.gray,
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
                             fontStyle: FontStyle.italic,
                           ),
                         ),
                       ],
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
                       Text(
                         recipe.description,
                         style: const TextStyle(
-                          fontSize: 15,
-                          color: AppColors.gray,
-                          height: 1.45,
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                          height: 1.5,
                         ),
                       ),
                       const SizedBox(height: 18),
-                      _InfoRow(
-                        prep: formatMinutes(recipe.prepMinutes),
-                        cook: formatMinutes(recipe.cookMinutes),
-                        difficulty: recipe.difficulty,
-                        servings: '${recipe.servings} porciones',
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 16,
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: _Info(
+                                  icon: Icons.timer_outlined,
+                                  label: 'Preparación',
+                                  value: formatMinutes(recipe.prepMinutes),
+                                ),
+                              ),
+                              Expanded(
+                                child: _Info(
+                                  icon: Icons.local_fire_department_outlined,
+                                  label: 'Cocción',
+                                  value: formatMinutes(recipe.cookMinutes),
+                                ),
+                              ),
+                              Expanded(
+                                child: _Info(
+                                  icon: Icons.signal_cellular_alt_rounded,
+                                  label: 'Nivel',
+                                  value: recipe.difficulty,
+                                ),
+                              ),
+                              Expanded(
+                                child: _Info(
+                                  icon: Icons.people_outline,
+                                  label: 'Porciones',
+                                  value: '${recipe.servings}',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                       if (recipe.difficultyIsEstimated) ...[
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 7),
                         const Text(
                           'La dificultad es una estimación de la app; la fuente no la publica.',
-                          style: TextStyle(fontSize: 11, color: AppColors.gray),
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ],
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 26),
 
-                      _SectionTitle(title: 'Ingredientes'),
+                      const _SectionTitle(title: 'Ingredientes'),
                       const SizedBox(height: 10),
-                      for (final ingredient in recipe.ingredients) ...[
-                        _IngredientLine(
-                          name:
-                              catalogAsync.valueOrNull?.labelForKey(
-                                ingredient.key,
-                              ) ??
-                              ingredient.key,
-                          quantity: ingredient.quantityText,
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(15),
+                          child: Column(
+                            children: [
+                              for (final ingredient in recipe.ingredients) ...[
+                                _IngredientLine(
+                                  name:
+                                      catalog?.labelForKey(ingredient.key) ??
+                                      ingredient.key,
+                                  quantity: ingredient.quantityText,
+                                ),
+                                if (ingredient != recipe.ingredients.last)
+                                  const SizedBox(height: 12),
+                              ],
+                            ],
+                          ),
                         ),
-                        const SizedBox(height: 8),
-                      ],
-                      const SizedBox(height: 20),
+                      ),
+                      const SizedBox(height: 22),
 
-                      _SectionTitle(title: 'Ingredientes que te faltan'),
+                      const _SectionTitle(title: 'Lo que te falta'),
                       const SizedBox(height: 10),
                       if (match.missing.isEmpty)
                         Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: AppColors.greenSoft,
+                            color: AppColors.card,
                             borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: AppColors.success.withValues(alpha: 0.45),
+                            ),
                           ),
                           child: const Row(
                             children: [
-                              Icon(Icons.check_circle, color: AppColors.green),
+                              Icon(
+                                Icons.check_circle_outline,
+                                color: AppColors.success,
+                              ),
                               SizedBox(width: 10),
                               Expanded(
                                 child: Text(
                                   '¡Tienes todos los ingredientes de esta receta!',
                                   style: TextStyle(
+                                    fontSize: 13,
                                     fontWeight: FontWeight.w700,
-                                    color: AppColors.green,
+                                    color: AppColors.textPrimary,
                                   ),
                                 ),
                               ),
@@ -194,37 +278,46 @@ class RecipeDetailScreen extends ConsumerWidget {
                           ),
                         )
                       else
-                        for (final missing in match.missing) ...[
-                          _IngredientLine(
-                            name:
-                                catalogAsync.valueOrNull?.labelForKey(
-                                  missing.key,
-                                ) ??
-                                missing.key,
-                            quantity: missing.quantityText,
-                            isMissing: true,
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(15),
+                            child: Column(
+                              children: [
+                                for (final missing in match.missing) ...[
+                                  _IngredientLine(
+                                    name:
+                                        catalog?.labelForKey(missing.key) ??
+                                        missing.key,
+                                    quantity: missing.quantityText,
+                                    isMissing: true,
+                                  ),
+                                  if (missing != match.missing.last)
+                                    const SizedBox(height: 12),
+                                ],
+                              ],
+                            ),
                           ),
-                          const SizedBox(height: 8),
-                        ],
-                      const SizedBox(height: 24),
+                        ),
+                      const SizedBox(height: 26),
 
-                      _SectionTitle(title: 'Preparación'),
-                      const SizedBox(height: 10),
+                      const _SectionTitle(title: 'Preparación'),
+                      const SizedBox(height: 12),
                       for (var i = 0; i < recipe.steps.length; i++) ...[
                         _Step(number: i + 1, text: recipe.steps[i]),
-                        const SizedBox(height: 10),
+                        if (i != recipe.steps.length - 1)
+                          const SizedBox(height: 12),
                       ],
 
                       if (recipe.nutrition.hasAny) ...[
-                        const SizedBox(height: 24),
-                        _SectionTitle(title: 'Información nutricional'),
+                        const SizedBox(height: 28),
+                        const _SectionTitle(title: 'Información nutricional'),
                         const SizedBox(height: 10),
                         Card(
                           child: Padding(
                             padding: const EdgeInsets.all(16),
                             child: Wrap(
-                              spacing: 20,
-                              runSpacing: 12,
+                              spacing: 24,
+                              runSpacing: 14,
                               children: [
                                 if (recipe.nutrition.calories != null)
                                   _Nutrient(
@@ -253,12 +346,15 @@ class RecipeDetailScreen extends ConsumerWidget {
                         const SizedBox(height: 6),
                         const Text(
                           'Valores publicados por la fuente original.',
-                          style: TextStyle(fontSize: 11, color: AppColors.gray),
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ],
 
-                      const SizedBox(height: 26),
-                      _SectionTitle(title: 'Fuente original'),
+                      const SizedBox(height: 28),
+                      const _SectionTitle(title: 'Fuente original'),
                       const SizedBox(height: 10),
                       Card(
                         child: Padding(
@@ -269,8 +365,9 @@ class RecipeDetailScreen extends ConsumerWidget {
                               Text(
                                 recipe.sourceName,
                                 style: const TextStyle(
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w800,
-                                  color: AppColors.charcoal,
+                                  color: AppColors.textPrimary,
                                 ),
                               ),
                               const SizedBox(height: 4),
@@ -278,13 +375,13 @@ class RecipeDetailScreen extends ConsumerWidget {
                                 recipe.originalSource,
                                 style: const TextStyle(
                                   fontSize: 12,
-                                  color: AppColors.gray,
+                                  color: AppColors.textSecondary,
                                 ),
                               ),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 14),
                               OutlinedButton.icon(
                                 onPressed: () => _openSource(recipe.sourceUrl),
-                                icon: const Icon(Icons.open_in_new),
+                                icon: const Icon(Icons.open_in_new, size: 17),
                                 label: const Text('Ver receta original'),
                               ),
                             ],
@@ -299,15 +396,59 @@ class RecipeDetailScreen extends ConsumerWidget {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('Error: $error')),
+        error: (error, _) => Center(
+          child: Text(
+            'Error: $error',
+            style: const TextStyle(color: AppColors.danger),
+          ),
+        ),
       ),
     );
+  }
+
+  String _keyFor(Ingredient ingredient, IngredientCatalog? catalog) {
+    if (ingredient.key != null && ingredient.key!.isNotEmpty) {
+      return ingredient.key!;
+    }
+    return catalog?.resolveKey(ingredient.name) ?? '';
+  }
+
+  Future<void> _share(Recipe recipe) async {
+    try {
+      await SharePlus.instance.share(
+        ShareParams(
+          text:
+              '${recipe.title}\n\n${recipe.description}\n\nFuente: ${recipe.sourceUrl}',
+          subject: recipe.title,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo compartir la receta.')),
+      );
+    }
   }
 
   Future<void> _openSource(String url) async {
     final uri = Uri.tryParse(url);
     if (uri == null) return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    try {
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo abrir el enlace.')),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo abrir el enlace.')),
+      );
+    }
   }
 }
 
@@ -318,57 +459,26 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      title.toUpperCase(),
-      style: const TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w900,
-        color: AppColors.orangeDark,
-        letterSpacing: 0.6,
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({
-    required this.prep,
-    required this.cook,
-    required this.difficulty,
-    required this.servings,
-  });
-
-  final String prep;
-  final String cook;
-  final String difficulty;
-  final String servings;
-
-  @override
-  Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(
-          child: _Info(icon: Icons.timer_outlined, label: 'Prep', value: prep),
-        ),
-        Expanded(
-          child: _Info(
-            icon: Icons.local_fire_department_outlined,
-            label: 'Cocción',
-            value: cook,
+        Container(
+          width: 3,
+          height: 16,
+          decoration: BoxDecoration(
+            color: AppColors.gold,
+            borderRadius: BorderRadius.circular(3),
           ),
         ),
+        const SizedBox(width: 9),
         Expanded(
-          child: _Info(
-            icon: Icons.signal_cellular_alt,
-            label: 'Nivel',
-            value: difficulty,
-          ),
-        ),
-        Expanded(
-          child: _Info(
-            icon: Icons.people_outline,
-            label: 'Porciones',
-            value: servings,
+          child: Text(
+            title.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+              color: AppColors.goldBright,
+              letterSpacing: 0.7,
+            ),
           ),
         ),
       ],
@@ -386,20 +496,23 @@ class _Info extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 20, color: AppColors.orange),
-        const SizedBox(height: 4),
+        Icon(icon, size: 18, color: AppColors.gold),
+        const SizedBox(height: 5),
         Text(
           label,
-          style: const TextStyle(fontSize: 10, color: AppColors.gray),
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 9, color: AppColors.textSecondary),
         ),
+        const SizedBox(height: 2),
         Text(
           value,
           textAlign: TextAlign.center,
           style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: AppColors.charcoal,
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
           ),
         ),
       ],
@@ -425,14 +538,18 @@ class _IngredientLine extends StatelessWidget {
       children: [
         Icon(
           isMissing ? Icons.shopping_bag_outlined : Icons.check_circle_outline,
-          size: 18,
-          color: isMissing ? AppColors.orange : AppColors.green,
+          size: 17,
+          color: isMissing ? AppColors.gold : AppColors.success,
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 9),
         Expanded(
           child: Text(
             quantity.isEmpty ? name : '$name — $quantity',
-            style: const TextStyle(fontSize: 14, color: AppColors.charcoal),
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textPrimary,
+              height: 1.3,
+            ),
           ),
         ),
       ],
@@ -452,14 +569,14 @@ class _Step extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         CircleAvatar(
-          radius: 14,
-          backgroundColor: AppColors.orange,
+          radius: 15,
+          backgroundColor: AppColors.gold.withValues(alpha: 0.18),
           child: Text(
             '$number',
             style: const TextStyle(
-              color: Colors.white,
+              color: AppColors.goldBright,
               fontSize: 12,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w900,
             ),
           ),
         ),
@@ -468,9 +585,9 @@ class _Step extends StatelessWidget {
           child: Text(
             text,
             style: const TextStyle(
-              fontSize: 14,
-              height: 1.45,
-              color: AppColors.charcoal,
+              fontSize: 13,
+              height: 1.5,
+              color: AppColors.textPrimary,
             ),
           ),
         ),
@@ -492,14 +609,15 @@ class _Nutrient extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 11, color: AppColors.gray),
+          style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
         ),
+        const SizedBox(height: 2),
         Text(
           value,
           style: const TextStyle(
-            fontSize: 16,
+            fontSize: 15,
             fontWeight: FontWeight.w800,
-            color: AppColors.charcoal,
+            color: AppColors.textPrimary,
           ),
         ),
       ],

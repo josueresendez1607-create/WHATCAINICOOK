@@ -32,6 +32,8 @@ enum RecipeFilter {
   comida('Comida', 'comida'),
   cena('Cena', 'cena'),
   postres('Postres', 'postres'),
+  ensaladas('Ensaladas', 'ensaladas'),
+  bebidas('Bebidas', 'bebidas'),
   saludable('Saludable', 'saludable'),
   rapida('Rápida', 'rapida'),
   economica('Económica', 'economica'),

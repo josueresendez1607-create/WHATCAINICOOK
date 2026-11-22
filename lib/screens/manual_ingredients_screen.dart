@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:whatcanicook/core/async_value_ext.dart';
 import 'package:whatcanicook/core/theme.dart';
 import 'package:whatcanicook/models/ingredient.dart';
 import 'package:whatcanicook/providers/app_providers.dart';
 import 'package:whatcanicook/widgets/empty_state.dart';
+import 'package:whatcanicook/widgets/section_header.dart';
 
 class ManualIngredientsScreen extends ConsumerStatefulWidget {
   const ManualIngredientsScreen({super.key});
@@ -47,6 +49,36 @@ class _ManualIngredientsScreenState
     }
   }
 
+  Future<void> _remove(Ingredient item) async {
+    if (item.id == null) return;
+    await ref.read(ingredientsProvider.notifier).remove(item.id!);
+  }
+
+  Future<void> _confirmClear() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('¿Vaciar lista?'),
+        content: const Text(
+          'Se eliminarán todos los ingredientes guardados en este dispositivo.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Vaciar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await ref.read(ingredientsProvider.notifier).clear();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final catalogAsync = ref.watch(ingredientCatalogProvider);
@@ -56,37 +88,33 @@ class _ManualIngredientsScreenState
       appBar: AppBar(
         title: const Text('Mis ingredientes'),
         actions: [
-          selectedAsync.when(
-            data: (items) => items.isEmpty
-                ? const SizedBox.shrink()
-                : IconButton(
-                    tooltip: 'Vaciar lista',
-                    icon: const Icon(Icons.delete_sweep_outlined),
-                    onPressed: () async {
-                      await ref.read(ingredientsProvider.notifier).clear();
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Lista vaciada.')),
-                        );
-                      }
-                    },
-                  ),
-            loading: () => const SizedBox.shrink(),
-            error: (_, _) => const SizedBox.shrink(),
-          ),
+          selectedAsync.valueOrNull?.isEmpty ?? true
+              ? const SizedBox.shrink()
+              : IconButton(
+                  tooltip: 'Vaciar lista',
+                  icon: const Icon(Icons.delete_sweep_outlined),
+                  onPressed: _confirmClear,
+                ),
         ],
       ),
       body: SafeArea(
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
+              child: SectionHeader(
+                title: 'Agrega ingredientes',
+                subtitle: 'Busca en el catálogo o escribe una cantidad.',
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
               child: TextField(
                 controller: _searchController,
                 onChanged: (_) => setState(() {}),
                 decoration: const InputDecoration(
                   hintText: 'Buscar ingrediente...',
-                  prefixIcon: Icon(Icons.search),
+                  prefixIcon: Icon(Icons.search_rounded),
                 ),
               ),
             ),
@@ -105,27 +133,37 @@ class _ManualIngredientsScreenState
             SizedBox(
               height: 42,
               child: catalogAsync.when(
-                data: (catalog) => ListView(
+                data: (catalog) => ListView.separated(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                  children: [
-                    _CategoryChip(
-                      label: 'Todos',
-                      selected: _category == 'todos',
-                      onTap: () => setState(() => _category = 'todos'),
-                    ),
-                    for (final category in catalog.categories) ...[
-                      const SizedBox(width: 8),
-                      _CategoryChip(
-                        label: category.label,
-                        selected: _category == category.id,
-                        onTap: () => setState(() => _category = category.id),
-                      ),
-                    ],
-                  ],
+                  itemCount: catalog.categories.length + 1,
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    if (index == 0) {
+                      return ChoiceChip(
+                        label: const Text('Todos'),
+                        selected: _category == 'todos',
+                        showCheckmark: false,
+                        onSelected: (_) => setState(() => _category = 'todos'),
+                      );
+                    }
+                    final category = catalog.categories[index - 1];
+                    return ChoiceChip(
+                      label: Text(category.label),
+                      selected: _category == category.id,
+                      showCheckmark: false,
+                      onSelected: (_) =>
+                          setState(() => _category = category.id),
+                    );
+                  },
                 ),
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (_, _) => const Text('No se pudo cargar el catálogo.'),
+                error: (_, _) => const Center(
+                  child: Text(
+                    'No se pudo cargar el catálogo.',
+                    style: TextStyle(color: AppColors.danger, fontSize: 12),
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 8),
@@ -146,44 +184,70 @@ class _ManualIngredientsScreenState
                   return ListView.separated(
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
                     itemCount: results.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 8),
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
                       final item = results[index];
-                      return ListTile(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          side: const BorderSide(color: AppColors.divider),
-                        ),
-                        leading: CircleAvatar(
-                          backgroundColor: AppColors.cream,
-                          child: Icon(
-                            _iconFor(item.category),
-                            color: AppColors.orange,
-                            size: 20,
+                      return Card(
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
                           ),
+                          leading: CircleAvatar(
+                            backgroundColor: AppColors.gold.withValues(
+                              alpha: 0.13,
+                            ),
+                            child: Icon(
+                              _iconFor(item.category),
+                              color: AppColors.gold,
+                              size: 19,
+                            ),
+                          ),
+                          title: Text(
+                            item.name,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          subtitle: Text(
+                            catalog.categoryLabel(item.category),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          trailing: const Icon(
+                            Icons.add_circle_outline,
+                            color: AppColors.goldBright,
+                          ),
+                          onTap: () => _add(item.name, item.key, item.category),
                         ),
-                        title: Text(item.name),
-                        subtitle: Text(
-                          catalog.categoryLabel(item.category),
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        trailing: const Icon(
-                          Icons.add_circle,
-                          color: AppColors.orange,
-                        ),
-                        onTap: () => _add(item.name, item.key, item.category),
                       );
                     },
                   );
                 },
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, _) => Center(child: Text('Error: $error')),
+                error: (error, _) => Center(
+                  child: Text(
+                    'Error: $error',
+                    style: const TextStyle(color: AppColors.danger),
+                  ),
+                ),
               ),
             ),
             Container(
               decoration: const BoxDecoration(
-                color: AppColors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                color: AppColors.surface,
+                border: Border(top: BorderSide(color: AppColors.border)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0x66000000),
+                    blurRadius: 18,
+                    offset: Offset(0, -6),
+                  ),
+                ],
               ),
               padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
               child: Column(
@@ -195,8 +259,9 @@ class _ManualIngredientsScreenState
                       const Text(
                         'En tu lista',
                         style: TextStyle(
+                          fontSize: 13,
                           fontWeight: FontWeight.w800,
-                          color: AppColors.charcoal,
+                          color: AppColors.textPrimary,
                         ),
                       ),
                       const Spacer(),
@@ -204,8 +269,8 @@ class _ManualIngredientsScreenState
                         data: (items) => Text(
                           '${items.length} ingredientes',
                           style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.gray,
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                         loading: () => const SizedBox.shrink(),
@@ -219,8 +284,8 @@ class _ManualIngredientsScreenState
                         ? const Text(
                             'Aún no agregas ingredientes.',
                             style: TextStyle(
-                              fontSize: 13,
-                              color: AppColors.gray,
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
                             ),
                           )
                         : SizedBox(
@@ -233,16 +298,20 @@ class _ManualIngredientsScreenState
                                 return Padding(
                                   padding: const EdgeInsets.only(right: 8),
                                   child: Chip(
+                                    avatar: const Icon(
+                                      Icons.restaurant_outlined,
+                                      size: 15,
+                                      color: AppColors.gold,
+                                    ),
                                     label: Text(
                                       item.quantity == null
                                           ? item.name
                                           : '${item.name} (${item.quantity})',
+                                      style: const TextStyle(fontSize: 11),
                                     ),
-                                    onDeleted: () => ref
-                                        .read(ingredientsProvider.notifier)
-                                        .remove(item.id!),
+                                    onDeleted: () => _remove(item),
                                     deleteIcon: const Icon(
-                                      Icons.close,
+                                      Icons.close_rounded,
                                       size: 16,
                                     ),
                                   ),
@@ -252,7 +321,10 @@ class _ManualIngredientsScreenState
                           ),
                     loading: () =>
                         const Center(child: CircularProgressIndicator()),
-                    error: (_, _) => const Text('No se pudo cargar tu lista.'),
+                    error: (_, _) => const Text(
+                      'No se pudo cargar tu lista.',
+                      style: TextStyle(color: AppColors.danger, fontSize: 12),
+                    ),
                   ),
                 ],
               ),
@@ -282,28 +354,5 @@ class _ManualIngredientsScreenState
       default:
         return Icons.restaurant_outlined;
     }
-  }
-}
-
-class _CategoryChip extends StatelessWidget {
-  const _CategoryChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => onTap(),
-      selectedColor: AppColors.orange.withValues(alpha: 0.18),
-      showCheckmark: false,
-    );
   }
 }

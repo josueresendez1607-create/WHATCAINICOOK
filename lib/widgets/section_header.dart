@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:whatcanicook/core/theme.dart';
 
 class SectionHeader extends StatelessWidget {
   const SectionHeader({
@@ -17,23 +18,36 @@ class SectionHeader extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
+        Container(
+          width: 3,
+          height: 38,
+          decoration: BoxDecoration(
+            color: AppColors.gold,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                style: const TextStyle(
+                  fontSize: 18,
                   fontWeight: FontWeight.w800,
-                  color: const Color(0xFF2B2422),
+                  color: AppColors.textPrimary,
                 ),
               ),
               if (subtitle != null) ...[
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Text(
                   subtitle!,
-                  style: Theme.of(context).textTheme.bodySmall
-                      ?.copyWith(color: const Color(0xFF6F6560)),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                    height: 1.3,
+                  ),
                 ),
               ],
             ],

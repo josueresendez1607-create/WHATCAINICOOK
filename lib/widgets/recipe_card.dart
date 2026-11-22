@@ -1,14 +1,22 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:whatcanicook/core/theme.dart';
 import 'package:whatcanicook/models/recipe_match.dart';
 import 'package:whatcanicook/utils/normalization.dart';
+import 'package:whatcanicook/widgets/food_image.dart';
 
 class RecipeCard extends StatelessWidget {
-  const RecipeCard({super.key, required this.match, required this.onTap});
+  const RecipeCard({
+    super.key,
+    required this.match,
+    required this.onTap,
+    this.isFavorite = false,
+    this.onFavoriteTap,
+  });
 
   final RecipeMatch match;
   final VoidCallback onTap;
+  final bool isFavorite;
+  final VoidCallback? onFavoriteTap;
 
   @override
   Widget build(BuildContext context) {
@@ -19,95 +27,133 @@ class RecipeCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SizedBox(
-              height: 132,
-              child: recipe.imageUrl == null
-                  ? Container(
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [AppColors.orange, AppColors.orangeDark],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.restaurant_menu_rounded,
-                          size: 54,
-                          color: Colors.white,
-                        ),
-                      ),
-                    )
-                  : CachedNetworkImage(
-                      imageUrl: recipe.imageUrl!,
-                      fit: BoxFit.cover,
-                      placeholder: (_, _) => const Center(
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                      errorWidget: (_, _, _) => const Center(
-                        child: Icon(Icons.broken_image_outlined),
+            Stack(
+              children: [
+                FoodImage(
+                  imagePath: recipe.imageUrl,
+                  height: 148,
+                  borderRadius: BorderRadius.zero,
+                  showBottomShade: true,
+                  semanticLabel: 'Fotografía de ${recipe.title}',
+                ),
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.background.withValues(alpha: 0.82),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: AppColors.gold.withValues(alpha: 0.45),
                       ),
                     ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+                    child: Text(
+                      '$percent% coincidencia',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.goldBright,
+                      ),
+                    ),
+                  ),
+                ),
+                if (onFavoriteTap != null)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: IconButton(
+                      tooltip: isFavorite
+                          ? 'Quitar de favoritos'
+                          : 'Guardar en favoritos',
+                      icon: Icon(
+                        isFavorite ? Icons.favorite : Icons.favorite_border,
+                        color: isFavorite
+                            ? AppColors.danger
+                            : AppColors.textPrimary,
+                      ),
+                      onPressed: onFavoriteTap,
+                    ),
+                  ),
+                Positioned(
+                  bottom: 10,
+                  left: 14,
+                  child: Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 9,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.greenSoft,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          '$percent% de coincidencia',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.green,
-                          ),
-                        ),
-                      ),
-                      const Spacer(),
                       const Icon(
-                        Icons.schedule,
-                        size: 15,
-                        color: AppColors.gray,
+                        Icons.schedule_rounded,
+                        size: 14,
+                        color: AppColors.goldBright,
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 5),
                       Text(
                         formatMinutes(recipe.totalMinutes),
                         style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.gray,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
                     recipe.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 16,
+                      fontSize: 15,
                       fontWeight: FontWeight.w800,
-                      color: AppColors.charcoal,
+                      color: AppColors.textPrimary,
+                      height: 1.25,
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '${match.missingCount} ingredientes faltantes · ${recipe.sourceName}',
-                    style: const TextStyle(fontSize: 12, color: AppColors.gray),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${match.missingCount} faltantes · ${recipe.sourceName}',
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.cardRaised,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          recipe.difficulty,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: AppColors.goldBright,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

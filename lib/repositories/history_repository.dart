@@ -32,6 +32,11 @@ class HistoryRepository {
     );
   }
 
+  Future<int> remove(int id) async {
+    final db = await _helper.database;
+    return db.delete('history', where: 'id = ?', whereArgs: [id]);
+  }
+
   Future<int> clear() async {
     final db = await _helper.database;
     return db.delete('history');

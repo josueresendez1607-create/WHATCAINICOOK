@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:whatcanicook/core/async_value_ext.dart';
+import 'package:whatcanicook/core/routes.dart';
 import 'package:whatcanicook/core/theme.dart';
+import 'package:whatcanicook/models/user_profile.dart';
 import 'package:whatcanicook/providers/app_providers.dart';
 import 'package:whatcanicook/widgets/empty_state.dart';
+import 'package:whatcanicook/widgets/section_header.dart';
 
 class HistoryScreen extends ConsumerWidget {
   const HistoryScreen({super.key});
@@ -15,11 +19,13 @@ class HistoryScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Historial'),
         actions: [
-          IconButton(
-            tooltip: 'Borrar historial',
-            icon: const Icon(Icons.delete_outline),
-            onPressed: () => ref.read(historyProvider.notifier).clear(),
-          ),
+          historyAsync.valueOrNull?.isEmpty ?? true
+              ? const SizedBox.shrink()
+              : IconButton(
+                  tooltip: 'Borrar historial',
+                  icon: const Icon(Icons.delete_sweep_outlined),
+                  onPressed: () => _confirmClear(context, ref),
+                ),
         ],
       ),
       body: SafeArea(
@@ -29,42 +35,171 @@ class HistoryScreen extends ConsumerWidget {
               return const EmptyState(
                 icon: Icons.history_rounded,
                 title: 'Sin actividad reciente',
-                message: 'Tus búsquedas y escaneos aparecerán aquí.',
+                message:
+                    'Tus búsquedas, escaneos y recetas vistas aparecerán aquí.',
               );
             }
-            return ListView.separated(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-              itemCount: items.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final item = items[index];
-                return Card(
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: AppColors.cream,
-                      child: Icon(
-                        item.kind == 'escaneo'
-                            ? Icons.photo_camera_outlined
-                            : Icons.search,
-                        color: AppColors.orange,
-                        size: 20,
-                      ),
-                    ),
-                    title: Text(item.value),
-                    subtitle: Text(
-                      '${item.kind == 'escaneo' ? 'Escaneo' : 'Búsqueda'} · '
-                      '${item.createdAt.day}/${item.createdAt.month}/${item.createdAt.year}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+                  child: SectionHeader(
+                    title: 'Actividad reciente',
+                    subtitle:
+                        '${items.length} eventos guardados en este dispositivo.',
                   ),
-                );
-              },
+                ),
+                Expanded(
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+                    itemCount: items.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final item = items[index];
+                      final isScan = item.kind == 'escaneo';
+                      final isRecipe = item.kind == 'receta';
+
+                      return Card(
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                          leading: CircleAvatar(
+                            radius: 20,
+                            backgroundColor: AppColors.gold.withValues(
+                              alpha: 0.14,
+                            ),
+                            child: Icon(
+                              isScan
+                                  ? Icons.photo_camera_outlined
+                                  : isRecipe
+                                  ? Icons.restaurant_menu_outlined
+                                  : Icons.auto_awesome_rounded,
+                              color: AppColors.gold,
+                              size: 19,
+                            ),
+                          ),
+                          title: Text(
+                            item.value,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          subtitle: Text(
+                            '${_kindLabel(item.kind)} · ${_dateLabel(item.createdAt)}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          trailing: IconButton(
+                            tooltip: 'Eliminar entrada',
+                            icon: const Icon(
+                              Icons.close_outlined,
+                              color: AppColors.textSecondary,
+                              size: 18,
+                            ),
+                            onPressed: () => _confirmRemove(context, ref, item),
+                          ),
+                          onTap: item.recipeId == null
+                              ? null
+                              : () => Navigator.of(context).pushNamed(
+                                  AppRoutes.recipeDetail,
+                                  arguments: item.recipeId,
+                                ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             );
           },
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => Center(child: Text('Error: $error')),
+          error: (error, _) => Center(
+            child: Text(
+              'Error: $error',
+              style: const TextStyle(color: AppColors.danger),
+            ),
+          ),
         ),
       ),
     );
+  }
+
+  String _kindLabel(String kind) {
+    switch (kind) {
+      case 'escaneo':
+        return 'Escaneo';
+      case 'receta':
+        return 'Receta vista';
+      case 'recetas':
+        return 'Generación';
+      default:
+        return 'Búsqueda';
+    }
+  }
+
+  String _dateLabel(DateTime date) {
+    return '${date.day}/${date.month}/${date.year} · '
+        '${date.hour.toString().padLeft(2, '0')}:'
+        '${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _confirmRemove(
+    BuildContext context,
+    WidgetRef ref,
+    HistoryEntry item,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('¿Eliminar entrada?'),
+        content: Text('Se quitará "${item.value}" del historial.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && item.id != null) {
+      await ref.read(historyProvider.notifier).remove(item.id as int);
+    }
+  }
+
+  Future<void> _confirmClear(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('¿Borrar historial?'),
+        content: const Text(
+          'Se eliminarán todos los eventos guardados en este dispositivo.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Borrar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await ref.read(historyProvider.notifier).clear();
+    }
   }
 }

@@ -2,55 +2,62 @@
 
 **Descubre qué puedes cocinar con los ingredientes que ya tienes.**
 
-WHATCANICOOK es una app Flutter para Android que:
+WHATCANICOOK es una app Flutter para Android con identidad **Dark Premium** (grafito `#161618`, superficies elevadas y acento dorado). Conserva la arquitectura original y añade fotografías reales de comida, un logotipo propio y una integración segura con Gemini.
 
-- toma una foto (cámara o galería) y usa IA para proponer ingredientes detectados;
-- permite corregir, agregar o quitar ingredientes antes de buscar recetas;
-- permite seleccionar ingredientes manualmente desde un catálogo local;
-- recomienda **recetas verificadas de fuentes oficiales** (MyPlate / USDA), con enlace a la fuente;
-- filtra y ordena recetas por coincidencia, tiempo, tipo de comida y preferencias del perfil;
-- guarda favoritos, historial y preferencias en SQLite local;
-- usa Material 3 con identidad visual propia (naranja/crema/verde).
+## Qué hace
+
+- Escanea ingredientes con la cámara o galería y permite corregir la lista detectada.
+- Permite ingresar ingredientes manualmente desde un catálogo local.
+- Busca, filtra, ordena y guarda recetas verificadas de **MyPlate (USDA)**.
+- Usa Gemini para **seleccionar** recetas del catálogo oficial; **nunca inventa recetas**.
+- Muestra fotos reales descargadas localmente, con fallback elegante si falla una imagen.
+- Guarda ingredientes, favoritos, historial y perfil en SQLite local.
+- Comparte recetas, abre la fuente original y muestra errores, carga y estados vacíos.
+- Mantiene la clave de Gemini **solo en el backend**.
 
 ## Estado real del proyecto
 
 | Funcionalidad | Estado |
 | --- | --- |
-| Interfaz, navegación, SQLite, catálogo, filtros, favoritos e historial | Implementado y verificado con `flutter analyze` y `flutter test` |
-| Escaneo con IA | Implementado en el cliente y el backend, pero **requiere configurar `GEMINI_API_KEY`** y una URL de backend accesible |
-| Recetas | 13 recetas transcritas de páginas oficiales de MyPlate (USDA); la app **no inventa recetas** |
-| Prueba en dispositivo físico | **No realizada**: no hay dispositivo/emulador conectado en el entorno de desarrollo |
-| APK de release | Generable con `flutter build apk --release`; se distribuye en `releases/WHATCANICOOK.apk` |
+| Interfaz Dark Premium, navegación, SQLite, catálogo, filtros, favoritos e historial | Implementado; `flutter analyze` sin problemas y pruebas Flutter en verde |
+| Escaneo con IA | Implementado; usa `gemini-3.8-flash` y requiere backend accesible con clave configurada |
+| Recetas | 13 recetas verificadas de MyPlate/USDA con foto local y enlace a la fuente |
+| Generación asistida | Gemini solo devuelve IDs del catálogo; el backend valida y devuelve recetas oficiales |
+| Pruebas backend | `unittest` con Gemini simulado; ninguna clave real en las pruebas |
+| APK de release | Generable; ver la sección «Generar el APK» |
 
 ## Seguridad
 
-- La clave de Gemini **nunca se incluye en el APK ni en GitHub**.
-- La app Flutter solo conoce la URL del backend mediante `--dart-define=WHATCANICOOK_API_BASE_URL=...`.
-- El backend Flask lee `GEMINI_API_KEY` desde variables de entorno locales.
-- `.env`, `backend/.env`, keystores y APK/AAB generados están excluidos por `.gitignore`.
+- La clave de Gemini **nunca se incluye en el APK, Flutter, GitHub ni logs**.
+- Flutter solo recibe la URL del backend mediante `--dart-define=WHATCANICOOK_API_BASE_URL=...`.
+- El backend Flask lee `GEMINI_API_KEY` desde `backend/.env` (o `.env` local).
+- `.env`, `backend/.env`, entornos virtuales, keystores y APK/AAB generados están excluidos por `.gitignore`.
+- `backend/.env.example` y `.env.example` contienen **solo marcadores de posición**.
+- El manifiesto permite HTTP solo para `10.0.2.2`, `127.0.0.1` y `localhost`; cualquier backend remoto debe usar HTTPS.
 
 ## Estructura
 
 ```text
 WHATCANICOOK/
-├─ android/                  Configuración nativa Android
+├─ android/                  Configuración nativa Android e iconos launcher
 ├─ assets/
-│  ├─ data/                  Catálogo de ingredientes y recetas verificadas
-│  ├─ icons/                 Icono adaptive y launcher
-│  ├─ images/                Splash
-│  └─ logos/                 Logo original
-├─ backend/                  Proxy Flask seguro para Gemini
-├─ docs/                     Guías de API, build y fuentes
+│  ├─ data/                  Catálogo de ingredientes y 13 recetas verificadas
+│  ├─ icons/                 Icono original dark y adaptive foreground
+│  ├─ images/recipes/        13 fotografías reales locales
+│  ├─ images/splash.png      Recurso splash
+│  └─ logos/                 Logotipo original (SVG/PNG)
+├─ backend/                  Proxy Flask seguro para Gemini y endpoints REST
+├─ docs/                     API, build, fuentes de recetas e imágenes
 ├─ legacy/practica_dart/     Proyecto original conservado (no se usa)
 ├─ lib/                      Código Flutter (core, models, database, services, providers, screens, widgets)
-├─ releases/                 APK generado para distribución
-├─ test/                     Pruebas unitarias y de widget
+├─ releases/                 APK generado para distribución (ignorado por Git)
+├─ test/                     Pruebas Flutter
 └─ tools/                    Generación reproducible de assets
 ```
 
-## Inicio rápido
+## Inicio rápido (Windows / PowerShell)
 
-### 1. Dependencias Flutter
+### 1. Dependencias y calidad
 
 ```powershell
 flutter pub get
@@ -59,63 +66,90 @@ flutter analyze
 flutter test
 ```
 
-Requiere Flutter 3.47+ / Dart 3.13+ y Android SDK 36 con licencias aceptadas.
+Requiere Flutter 3.47+ / Dart 3.13+ y Android SDK con licencias aceptadas.
 
-### 2. Activar el escaneo con IA (opcional pero necesario para esa función)
+Pruebas del backend, con Gemini simulado:
+
+```powershell
+.\backend\.venv\Scripts\python.exe -m unittest discover -s backend -p "test_*.py" -v
+```
+
+### 2. Activar IA
 
 ```powershell
 copy .env.example .env
-# Edita .env y pega tu GEMINI_API_KEY real.
+# Edita .env y pega tu GEMINI_API_KEY real solo en tu máquina.
 ```
 
-Luego, desde `backend/`:
+Backend:
 
 ```powershell
+cd backend
 python -m venv .venv
 .\.venv\Scripts\activate
 pip install -r requirements.txt
 python app.py
 ```
 
-Verifica:
+Verificación (no muestra la clave):
 
 ```powershell
 curl http://127.0.0.1:5000/api/health
 ```
 
-Debe devolver `"aiConfigured": true`.
+Debe devolver `"aiConfigured": true`, `"model": "gemini-3.8-flash"` y los endpoints disponibles.
 
-Finalmente ejecuta la app apuntando al backend:
+### 3. Ejecutar la app
+
+Emulador Android:
 
 ```powershell
-# Emulador Android
 flutter run --dart-define=WHATCANICOOK_API_BASE_URL=http://10.0.2.2:5000
+```
 
-# Dispositivo físico en la misma red (sustituye la IP)
+Dispositivo físico en la misma red (sustituye la IP; consulta `ipconfig`):
+
+```powershell
 flutter run --dart-define=WHATCANICOOK_API_BASE_URL=http://192.168.1.10:5000
 ```
 
-Si no configuras el backend o la clave, la app sigue funcionando: el escaneo muestra un mensaje claro y la selección manual de ingredientes sigue disponible.
+> El emulador usa `10.0.2.2` para hablar con tu PC. Un dispositivo físico **no** puede usar esa IP. Para producción, publica el backend detrás de HTTPS.
 
-Consulta [docs/API_SETUP.md](docs/API_SETUP.md) para el detalle completo.
+Si no configuras backend o clave, la app sigue funcionando: muestra un mensaje claro y mantiene disponible la selección manual y el catálogo verificado.
 
-### 3. Generar el APK
+Detalle completo: [docs/API_SETUP.md](docs/API_SETUP.md).
+
+## Endpoints
+
+| Método | Ruta | Descripción |
+| --- | --- | --- |
+| `GET` | `/api/health` | Estado, modelo, catálogo y endpoints |
+| `POST` | `/api/vision/ingredients` | Imagen → ingredientes detectados por Gemini |
+| `POST` | `/api/recipes/generate` | Ingredientes + filtros → recetas verificadas seleccionadas |
+| `GET` | `/api/recipes` | Catálogo, con `q`, `category` y `limit` |
+| `GET` | `/api/recipes/{id}` | Detalle de una receta verificada |
+
+La respuesta de `/api/recipes/generate` incluye `mode` (`gemini` o `local`), `selected`, `recipes`, `reasons`, `filledLocally`, `totalCandidates`, `verifiedOnly` y `warning`.
+
+## Generar el APK
 
 ```powershell
-flutter build apk --release
+flutter build apk --release --dart-define=WHATCANICOOK_API_BASE_URL=http://10.0.2.2:5000
 Copy-Item build\app\outputs\flutter-apk\app-release.apk releases\WHATCANICOOK.apk -Force
 ```
 
-Consulta [docs/BUILD.md](docs/BUILD.md) para AAB, firma y Play Store.
+Ese APK está orientado al **emulador Android**. Para un dispositivo físico o producción, reconstruye con la IP/localidad o URL HTTPS correcta. El APK se guarda en `releases/WHATCANICOOK.apk` y está ignorado por Git deliberadamente.
 
-## Fuentes de las recetas
+Más detalles: [docs/BUILD.md](docs/BUILD.md).
 
-Las 13 recetas incluidas proceden de [MyPlate (USDA)](https://www.myplate.gov/recipes). Cada una conserva `sourceUrl`, `originalSource`, tiempos y valores nutricionales **cuando la fuente oficial los publica**. Las etiquetas y la dificultad son estimaciones de la app y están marcadas como tales.
+## Fuentes
 
-Listado completo: [docs/RECIPE_SOURCES.md](docs/RECIPE_SOURCES.md).
+- Recetas: [docs/RECIPE_SOURCES.md](docs/RECIPE_SOURCES.md)
+- Fotografías y licencias: [docs/IMAGE_SOURCES.md](docs/IMAGE_SOURCES.md)
+- Las fotos son representaciones visuales de Wikimedia Commons; **no fueron verificadas por Gemini** y no alteran los datos oficiales.
 
 ## Repositorio
 
-- Remoto: `https://github.com/josueresendez1607-create/WHATCANICOOK.git`
+- Remoto: `https://github.com/josueresendez1607-create/WHATCAINICOOK.git`
 - Rama principal: `main`
 - El proyecto original `practica_dart` se conserva en `legacy/practica_dart/` y está excluido del analizador.

@@ -104,7 +104,7 @@ class RecipeGenerationService {
               filters: filters,
             ),
           )
-          .timeout(const Duration(seconds: 40));
+          .timeout(const Duration(seconds: 20));
 
       if (response.statusCode != 200) {
         return AppFailure(

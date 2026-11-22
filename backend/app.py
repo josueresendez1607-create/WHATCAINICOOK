@@ -267,7 +267,7 @@ def _gemini_select(
                 "Content-Type": "application/json",
             },
             json=payload,
-            timeout=45,
+            timeout=15,
         )
     except requests.RequestException as exc:
         return [], {}, f"No se pudo contactar a Gemini: {type(exc).__name__}"
@@ -531,7 +531,13 @@ def generate_recipes():
     tokens, names = _ingredient_tokens(raw_ingredients)
     local_order = _rank_local(candidates, tokens)
 
-    selected, reasons, gemini_note = _gemini_select(candidates, names, count)
+    # Limitar candidatos enviados a Gemini para reducir latencia.
+    gemini_pool_ids = set(local_order[:30])
+    gemini_candidates = [r for r in candidates if r.get("id") in gemini_pool_ids]
+    if not gemini_candidates:
+        gemini_candidates = candidates[:30]
+
+    selected, reasons, gemini_note = _gemini_select(gemini_candidates, names, count)
     mode = "gemini" if selected else "local"
     filled_locally: List[str] = []
     for recipe_id in local_order:

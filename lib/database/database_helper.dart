@@ -15,6 +15,7 @@ class DatabaseHelper {
   static const String _name = 'whatcanicook.db';
 
   Database? _database;
+  Future<Database>? _opening;
   DatabaseFactory? _factoryOverride;
   String _databaseName = _name;
 
@@ -28,9 +29,21 @@ class DatabaseHelper {
   Future<Database> get database async {
     final existing = _database;
     if (existing != null && existing.isOpen) return existing;
-    final created = await _open();
-    _database = created;
-    return created;
+
+    // Varios providers solicitan la base al iniciar. Compartimos la apertura
+    // para no abrir dos veces el mismo archivo y evitar bloqueos de SQLite.
+    final opening = _opening;
+    if (opening != null) return opening;
+
+    final future = _open();
+    _opening = future;
+    try {
+      final created = await future;
+      _database = created;
+      return created;
+    } finally {
+      _opening = null;
+    }
   }
 
   Future<Database> _open() async {
@@ -156,6 +169,12 @@ class DatabaseHelper {
   }
 
   Future<void> close() async {
+    final opening = _opening;
+    if (opening != null) {
+      try {
+        await opening;
+      } catch (_) {}
+    }
     final db = _database;
     if (db != null && db.isOpen) await db.close();
     _database = null;

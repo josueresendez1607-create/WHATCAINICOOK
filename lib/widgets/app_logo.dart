@@ -26,37 +26,47 @@ class AppLogo extends StatelessWidget {
 
     if (!showText) return mark;
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        mark,
-        const SizedBox(width: 10),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // En pantallas estrechas el texto no cabe junto al botón de
+        // configuración; mostramos solo el símbolo para evitar overflow.
+        if (constraints.hasBoundedWidth && constraints.maxWidth < 210) {
+          return mark;
+        }
+
+        return Row(
           mainAxisSize: MainAxisSize.min,
-          children: const [
-            Text(
-              'WHATCANICOOK',
-              style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 17,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.4,
-              ),
-            ),
-            SizedBox(height: 2),
-            Text(
-              'COOK SMARTER',
-              style: TextStyle(
-                color: AppColors.gold,
-                fontSize: 8,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 2.6,
-              ),
+          children: [
+            mark,
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Text(
+                  'WHATCANICOOK',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.4,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'COOK SMARTER',
+                  style: TextStyle(
+                    color: AppColors.gold,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 2.6,
+                  ),
+                ),
+              ],
             ),
           ],
-        ),
-      ],
+        );
+      },
     );
   }
 }

@@ -112,7 +112,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             children: [
               Row(
                 children: [
-                  const AppLogo(height: 48),
+                  const Flexible(child: AppLogo(height: 48)),
                   const Spacer(),
                   _CircleAction(
                     icon: Icons.settings_outlined,
@@ -198,7 +198,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               Stack(
                 children: [
                   SizedBox(
-                    height: 96,
+                    height: 104,
                     child: ListView.separated(
                       controller: _categoryScrollController,
                       scrollDirection: Axis.horizontal,
@@ -486,18 +486,23 @@ class _CircleAction extends StatelessWidget {
   Widget build(BuildContext context) {
     return Tooltip(
       message: tooltip,
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        child: Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            shape: BoxShape.circle,
-            border: Border.all(color: AppColors.border),
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          customBorder: const CircleBorder(),
+          child: Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Icon(icon, color: AppColors.gold, size: 21),
           ),
-          child: Icon(icon, color: AppColors.gold, size: 21),
         ),
       ),
     );

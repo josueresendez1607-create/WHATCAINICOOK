@@ -38,7 +38,14 @@ MODEL = MODEL_FROM_ENV or "gemini-3.8-flash"
 MODEL_SOURCE = "env" if MODEL_FROM_ENV else "default"
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").strip()
 MAX_IMAGE_BYTES = 12 * 1024 * 1024
-ALLOWED_MIMES = {"image/jpeg", "image/png", "image/webp"}
+ALLOWED_MIMES = {
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/webp",
+    "image/heic",
+    "image/heif",
+}
 RECIPES_PATH = os.path.join(PROJECT_DIR, "assets", "data", "recipes.json")
 
 GEMINI_URL = (
@@ -333,7 +340,30 @@ def analyze_ingredients():
     if upload is None or not upload.filename:
         return _error("Falta la imagen en el campo 'image'.")
 
-    mime = upload.mimetype or ""
+    declared_mime = (upload.mimetype or "").lower().split(";")[0].strip()
+    head = upload.stream.read(12)
+    upload.stream.seek(0)
+
+    detected_mime = ""
+    if head.startswith(b"\xff\xd8\xff"):
+        detected_mime = "image/jpeg"
+    elif head.startswith(b"\x89PNG\r\n\x1a\n"):
+        detected_mime = "image/png"
+    elif head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        detected_mime = "image/webp"
+    elif len(head) >= 12 and head[4:8] == b"ftyp" and head[8:12] in {
+        b"heic",
+        b"heix",
+        b"hevc",
+        b"hevx",
+        b"mif1",
+        b"msf1",
+    }:
+        detected_mime = "image/heic"
+
+    mime = detected_mime or declared_mime
+    if mime == "image/jpg":
+        mime = "image/jpeg"
     if mime not in ALLOWED_MIMES:
         return _error("Formato no soportado. Usa JPEG, PNG o WebP.")
 

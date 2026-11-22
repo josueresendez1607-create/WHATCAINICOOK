@@ -5,6 +5,7 @@ import 'package:whatcanicook/core/routes.dart';
 import 'package:whatcanicook/core/theme.dart';
 import 'package:whatcanicook/models/user_profile.dart';
 import 'package:whatcanicook/providers/app_providers.dart';
+import 'package:whatcanicook/utils/feedback.dart';
 import 'package:whatcanicook/widgets/empty_state.dart';
 import 'package:whatcanicook/widgets/section_header.dart';
 
@@ -104,7 +105,8 @@ class HistoryScreen extends ConsumerWidget {
                               color: AppColors.textSecondary,
                               size: 18,
                             ),
-                            onPressed: () => _confirmRemove(context, ref, item),
+                            onPressed: () =>
+                                _removeWithUndo(context, ref, item),
                           ),
                           onTap: item.recipeId == null
                               ? null
@@ -151,31 +153,23 @@ class HistoryScreen extends ConsumerWidget {
         '${date.minute.toString().padLeft(2, '0')}';
   }
 
-  Future<void> _confirmRemove(
+  Future<void> _removeWithUndo(
     BuildContext context,
     WidgetRef ref,
     HistoryEntry item,
   ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('¿Eliminar entrada?'),
-        content: Text('Se quitará "${item.value}" del historial.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
+    if (item.id == null) return;
+    final id = item.id!;
+    final notifier = ref.read(historyProvider.notifier);
+    final messenger = ScaffoldMessenger.of(context);
+    await notifier.remove(id);
+    showUndoSnackBar(
+      null,
+      messenger: messenger,
+      message: 'Entrada eliminada del historial.',
+      actionLabel: 'Deshacer',
+      onUndo: () => notifier.restore(item),
     );
-    if (confirmed == true && item.id != null) {
-      await ref.read(historyProvider.notifier).remove(item.id as int);
-    }
   }
 
   Future<void> _confirmClear(BuildContext context, WidgetRef ref) async {

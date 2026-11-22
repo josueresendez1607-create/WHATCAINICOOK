@@ -1,3 +1,4 @@
+import 'package:sqflite/sqflite.dart';
 import 'package:whatcanicook/database/database_helper.dart';
 import 'package:whatcanicook/models/user_profile.dart';
 
@@ -29,6 +30,16 @@ class HistoryRepository {
         recipeId: recipeId,
         createdAt: DateTime.now(),
       ).toMap()..remove('id'),
+    );
+  }
+
+  /// Restaura una entrada conservando su fecha original (para deshacer).
+  Future<void> restore(HistoryEntry entry) async {
+    final db = await _helper.database;
+    await db.insert(
+      'history',
+      entry.toMap()..remove('id'),
+      conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
 

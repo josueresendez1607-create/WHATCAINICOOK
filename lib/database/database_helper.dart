@@ -11,14 +11,17 @@ class DatabaseHelper {
   DatabaseHelper._();
   static final DatabaseHelper instance = DatabaseHelper._();
 
-  static const int _version = 1;
+  static const int _version = 2;
   static const String _name = 'whatcanicook.db';
 
   Database? _database;
   DatabaseFactory? _factoryOverride;
+  String _databaseName = _name;
 
-  void useFactory(DatabaseFactory factory) {
+  /// Permite aislar la base en pruebas usando un nombre distinto.
+  void useFactory(DatabaseFactory factory, {String? databaseName}) {
     _factoryOverride = factory;
+    _databaseName = databaseName ?? _name;
     _database = null;
   }
 
@@ -35,7 +38,7 @@ class DatabaseHelper {
     final databasesPath = factory != null
         ? await factory.getDatabasesPath()
         : await getDatabasesPath();
-    final path = p.join(databasesPath, _name);
+    final path = p.join(databasesPath, _databaseName);
 
     Future<Database> open() {
       if (factory != null) {
@@ -99,6 +102,16 @@ class DatabaseHelper {
       'CREATE INDEX idx_history_created ON history(created_at DESC)',
     );
     batch.execute('''
+      CREATE TABLE hidden_recipes (
+        recipe_id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      )
+    ''');
+    batch.execute(
+      'CREATE INDEX idx_hidden_created ON hidden_recipes(created_at DESC)',
+    );
+    batch.execute('''
       CREATE TABLE profile (
         id INTEGER PRIMARY KEY CHECK (id = 1),
         name TEXT NOT NULL DEFAULT '',
@@ -127,9 +140,19 @@ class DatabaseHelper {
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // Punto de extensión para migraciones futuras.
-    // Ejemplo:
-    // if (oldVersion < 2) { await db.execute('ALTER TABLE ...'); }
+    if (oldVersion < 2) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS hidden_recipes (
+          recipe_id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        )
+      ''');
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_hidden_created '
+        'ON hidden_recipes(created_at DESC)',
+      );
+    }
   }
 
   Future<void> close() async {

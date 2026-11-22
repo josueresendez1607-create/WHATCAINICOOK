@@ -9,6 +9,7 @@ import 'package:whatcanicook/models/ingredient_catalog.dart';
 import 'package:whatcanicook/models/recipe.dart';
 import 'package:whatcanicook/providers/app_providers.dart';
 import 'package:whatcanicook/services/recipe_matcher.dart';
+import 'package:whatcanicook/utils/feedback.dart';
 import 'package:whatcanicook/utils/normalization.dart';
 import 'package:whatcanicook/widgets/food_image.dart';
 
@@ -29,6 +30,7 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
     final recipesAsync = ref.watch(recipesProvider);
     final ingredientsAsync = ref.watch(ingredientsProvider);
     final favoritesAsync = ref.watch(favoritesProvider);
+    final hiddenAsync = ref.watch(hiddenRecipesProvider);
     final catalogAsync = ref.watch(ingredientCatalogProvider);
 
     return Scaffold(
@@ -57,6 +59,9 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
 
           final isFavorite =
               favoritesAsync.valueOrNull?.any((f) => f.recipeId == recipe.id) ??
+              false;
+          final isHidden =
+              hiddenAsync.valueOrNull?.any((h) => h.recipeId == recipe.id) ??
               false;
           final catalog = catalogAsync.valueOrNull;
           final availableKeys = <String>{
@@ -124,6 +129,16 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
                     ),
                     onPressed: () =>
                         ref.read(favoritesProvider.notifier).toggle(recipe.id),
+                  ),
+                  IconButton(
+                    tooltip: isHidden ? 'Mostrar platillo' : 'Ocultar platillo',
+                    icon: Icon(
+                      isHidden
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                      color: AppColors.goldBright,
+                    ),
+                    onPressed: () => _toggleHiddenWithUndo(recipe, isHidden),
                   ),
                   IconButton(
                     tooltip: 'Compartir receta',
@@ -245,9 +260,45 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
                       ),
                       const SizedBox(height: 22),
 
-                      const _SectionTitle(title: 'Lo que te falta'),
+                      _SectionTitle(
+                        title: availableKeys.isEmpty
+                            ? 'Coincidencia de ingredientes'
+                            : 'Lo que te falta',
+                      ),
                       const SizedBox(height: 10),
-                      if (match.missing.isEmpty)
+                      if (availableKeys.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppColors.card,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                color: AppColors.gold,
+                                size: 20,
+                              ),
+                              SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'Agrega ingredientes a tu lista para ver '
+                                  'cuáles tienes y cuáles te faltan. Sin '
+                                  'ingredientes activos no mostramos '
+                                  'porcentajes ni conteos de faltantes.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    height: 1.4,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else if (match.missing.isEmpty)
                         Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
@@ -403,6 +454,29 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _toggleHiddenWithUndo(
+    Recipe recipe,
+    bool currentlyHidden,
+  ) async {
+    final notifier = ref.read(hiddenRecipesProvider.notifier);
+    if (currentlyHidden) {
+      await notifier.unhide(recipe.id);
+    } else {
+      await notifier.hide(recipe.id, recipe.title);
+    }
+    if (!mounted) return;
+    showUndoSnackBar(
+      context,
+      message: currentlyHidden
+          ? '${recipe.title} vuelve a aparecer en tus listados.'
+          : '${recipe.title} se ocultó de tus listados.',
+      actionLabel: 'Deshacer',
+      onUndo: () => currentlyHidden
+          ? notifier.hide(recipe.id, recipe.title)
+          : notifier.unhide(recipe.id),
     );
   }
 

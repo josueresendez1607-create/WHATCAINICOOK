@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:whatcanicook/models/hidden_recipe.dart';
 import 'package:whatcanicook/models/ingredient.dart';
 import 'package:whatcanicook/models/user_profile.dart';
 import 'package:whatcanicook/repositories/favorite_repository.dart';
+import 'package:whatcanicook/repositories/hidden_recipe_repository.dart';
 import 'package:whatcanicook/repositories/history_repository.dart';
 import 'package:whatcanicook/repositories/ingredient_repository.dart';
 import 'package:whatcanicook/repositories/profile_repository.dart';
@@ -13,6 +15,9 @@ final catalogServiceProvider = Provider((ref) => CatalogService());
 final ingredientRepositoryProvider = Provider((ref) => IngredientRepository());
 final favoriteRepositoryProvider = Provider((ref) => FavoriteRepository());
 final historyRepositoryProvider = Provider((ref) => HistoryRepository());
+final hiddenRecipeRepositoryProvider = Provider(
+  (ref) => HiddenRecipeRepository(),
+);
 final profileRepositoryProvider = Provider((ref) => ProfileRepository());
 final visionServiceProvider = Provider((ref) => VisionService());
 final recipeGenerationServiceProvider = Provider(
@@ -120,6 +125,11 @@ class FavoritesNotifier extends AsyncNotifier<List<FavoriteRecipe>> {
     await ref.read(favoriteRepositoryProvider).remove(recipeId);
     ref.invalidateSelf();
   }
+
+  Future<void> restore(FavoriteRecipe item) async {
+    await ref.read(favoriteRepositoryProvider).restore(item);
+    ref.invalidateSelf();
+  }
 }
 
 final historyProvider =
@@ -144,9 +154,43 @@ class HistoryNotifier extends AsyncNotifier<List<HistoryEntry>> {
     ref.invalidateSelf();
   }
 
+  Future<void> restore(HistoryEntry entry) async {
+    await ref.read(historyRepositoryProvider).restore(entry);
+    ref.invalidateSelf();
+  }
+
   Future<void> clear() async {
     await ref.read(historyRepositoryProvider).clear();
     ref.invalidateSelf();
+  }
+}
+
+/// Platillos que el usuario ocultó de todos los listados.
+final hiddenRecipesProvider =
+    AsyncNotifierProvider<HiddenRecipesNotifier, List<HiddenRecipe>>(
+      HiddenRecipesNotifier.new,
+    );
+
+class HiddenRecipesNotifier extends AsyncNotifier<List<HiddenRecipe>> {
+  @override
+  Future<List<HiddenRecipe>> build() =>
+      ref.read(hiddenRecipeRepositoryProvider).all();
+
+  Future<void> hide(String recipeId, String title) => _update(
+    () => ref.read(hiddenRecipeRepositoryProvider).hide(recipeId, title),
+  );
+
+  Future<void> unhide(String recipeId) =>
+      _update(() => ref.read(hiddenRecipeRepositoryProvider).unhide(recipeId));
+
+  Future<void> clear() =>
+      _update(() => ref.read(hiddenRecipeRepositoryProvider).clear());
+
+  Future<void> _update(Future<Object?> Function() action) async {
+    state = await AsyncValue.guard(() async {
+      await action();
+      return ref.read(hiddenRecipeRepositoryProvider).all();
+    });
   }
 }
 

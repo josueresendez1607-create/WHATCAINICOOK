@@ -5,6 +5,7 @@ import 'package:whatcanicook/core/theme.dart';
 import 'package:whatcanicook/models/user_profile.dart';
 import 'package:whatcanicook/providers/app_providers.dart';
 import 'package:whatcanicook/widgets/app_logo.dart';
+import 'package:whatcanicook/widgets/preference_toggle.dart';
 import 'package:whatcanicook/widgets/section_header.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -129,7 +130,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               Card(
                 child: Column(
                   children: [
-                    _PreferenceSwitch(
+                    PreferenceToggle(
                       icon: Icons.eco_outlined,
                       title: 'Vegetariano',
                       subtitle: 'Prioriza recetas sin carne ni pescado.',
@@ -138,7 +139,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           _save(profile.copyWith(vegetarian: value)),
                     ),
                     const Divider(height: 1),
-                    _PreferenceSwitch(
+                    PreferenceToggle(
                       icon: Icons.grain_outlined,
                       title: 'Sin gluten',
                       subtitle: 'Evita ingredientes con gluten conocido.',
@@ -147,7 +148,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           _save(profile.copyWith(glutenFree: value)),
                     ),
                     const Divider(height: 1),
-                    _PreferenceSwitch(
+                    PreferenceToggle(
                       icon: Icons.fitness_center_outlined,
                       title: 'Alto en proteínas',
                       subtitle: 'Prefiere recetas con más proteína.',
@@ -156,7 +157,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           _save(profile.copyWith(highProtein: value)),
                     ),
                     const Divider(height: 1),
-                    _PreferenceSwitch(
+                    PreferenceToggle(
                       icon: Icons.local_fire_department_outlined,
                       title: 'Bajo en calorías',
                       subtitle: 'Prioriza opciones ligeras.',
@@ -220,43 +221,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _PreferenceSwitch extends StatelessWidget {
-  const _PreferenceSwitch({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return SwitchListTile(
-      secondary: Icon(icon, color: AppColors.gold),
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary,
-        ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-      ),
-      value: value,
-      onChanged: onChanged,
     );
   }
 }

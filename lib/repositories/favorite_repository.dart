@@ -43,6 +43,16 @@ class FavoriteRepository {
     );
   }
 
+  /// Restaura un favorito con su fecha original (para deshacer una eliminación).
+  Future<void> restore(FavoriteRecipe item) async {
+    final db = await _helper.database;
+    await db.insert(
+      'favorites',
+      item.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
   Future<int> remove(String recipeId) async {
     final db = await _helper.database;
     return db.delete(

@@ -5,6 +5,7 @@ import 'package:whatcanicook/core/routes.dart';
 import 'package:whatcanicook/core/theme.dart';
 import 'package:whatcanicook/models/user_profile.dart';
 import 'package:whatcanicook/providers/app_providers.dart';
+import 'package:whatcanicook/utils/feedback.dart';
 import 'package:whatcanicook/widgets/empty_state.dart';
 import 'package:whatcanicook/widgets/food_image.dart';
 import 'package:whatcanicook/widgets/section_header.dart';
@@ -79,7 +80,7 @@ class FavoritesScreen extends ConsumerWidget {
                             Icons.favorite,
                             color: AppColors.danger,
                           ),
-                          onPressed: () => _confirmRemove(context, ref, item),
+                          onPressed: () => _removeWithUndo(context, ref, item),
                         ),
                         onTap: () => Navigator.of(context).pushNamed(
                           AppRoutes.recipeDetail,
@@ -108,31 +109,21 @@ class FavoritesScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _confirmRemove(
+  Future<void> _removeWithUndo(
     BuildContext context,
     WidgetRef ref,
     FavoriteRecipe item,
   ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('¿Quitar de favoritos?'),
-        content: Text('Se eliminará "${item.title}" de tu lista guardada.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Quitar'),
-          ),
-        ],
-      ),
+    final notifier = ref.read(favoritesProvider.notifier);
+    final messenger = ScaffoldMessenger.of(context);
+    await notifier.remove(item.recipeId);
+    showUndoSnackBar(
+      null,
+      messenger: messenger,
+      message: '${item.title} se quitó de favoritos.',
+      actionLabel: 'Deshacer',
+      onUndo: () => notifier.restore(item),
     );
-    if (confirmed == true) {
-      await ref.read(favoritesProvider.notifier).remove(item.recipeId);
-    }
   }
 
   Future<void> _confirmClear(BuildContext context, WidgetRef ref) async {

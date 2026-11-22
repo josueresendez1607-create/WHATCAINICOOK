@@ -10,9 +10,11 @@ import 'package:whatcanicook/core/routes.dart';
 import 'package:whatcanicook/core/theme.dart';
 import 'package:whatcanicook/models/ingredient.dart';
 import 'package:whatcanicook/models/ingredient_catalog.dart';
+import 'package:whatcanicook/models/recipe.dart';
 import 'package:whatcanicook/navigation/app_shell.dart';
 import 'package:whatcanicook/providers/app_providers.dart';
 import 'package:whatcanicook/services/recipe_matcher.dart';
+import 'package:whatcanicook/utils/feedback.dart';
 import 'package:whatcanicook/widgets/app_logo.dart';
 import 'package:whatcanicook/widgets/category_tile.dart';
 import 'package:whatcanicook/widgets/food_image.dart';
@@ -28,6 +30,13 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _scanning = false;
+  final ScrollController _categoryScrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _categoryScrollController.dispose();
+    super.dispose();
+  }
 
   static const List<_Category> _categories = [
     _Category(
@@ -53,6 +62,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       tag: 'saludable',
       icon: Icons.favorite_outline,
     ),
+    _Category(label: 'Rápidas', tag: 'rapida', icon: Icons.bolt_outlined),
+    _Category(
+      label: 'Económicas',
+      tag: 'economica',
+      icon: Icons.savings_outlined,
+    ),
+    _Category(
+      label: 'Alta proteína',
+      tag: 'alta_en_proteinas',
+      icon: Icons.fitness_center_outlined,
+    ),
+    _Category(
+      label: 'Bajas calorías',
+      tag: 'baja_en_calorias',
+      icon: Icons.local_fire_department_outlined,
+    ),
+    _Category(
+      label: 'Vegetariana',
+      tag: 'vegetariana',
+      icon: Icons.eco_rounded,
+    ),
   ];
 
   @override
@@ -62,6 +92,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final catalogAsync = ref.watch(ingredientCatalogProvider);
     final profileAsync = ref.watch(profileProvider);
     final favoritesAsync = ref.watch(favoritesProvider);
+    final hiddenIds =
+        ref
+            .watch(hiddenRecipesProvider)
+            .valueOrNull
+            ?.map((h) => h.recipeId)
+            .toSet() ??
+        <String>{};
 
     final name = profileAsync.valueOrNull?.name.trim() ?? '';
     final greeting = name.isEmpty ? '¡Hola, cocinero!' : '¡Hola, $name!';
@@ -154,31 +191,67 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
               const SectionHeader(
                 title: 'Categorías',
-                subtitle: 'Explora recetas verificadas por tipo de comida.',
+                subtitle:
+                    'Desliza horizontalmente para ver todas las categorías.',
               ),
               const SizedBox(height: 12),
-              SizedBox(
-                height: 92,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _categories.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 10),
-                  itemBuilder: (context, index) {
-                    final category = _categories[index];
-                    return CategoryTile(
-                      icon: category.icon,
-                      label: category.label,
-                      onTap: () {
-                        ref
-                            .read(exploreCategoryProvider.notifier)
-                            .set(category.tag);
-                        ref
-                            .read(navigationIndexProvider.notifier)
-                            .select(AppShell.explore);
+              Stack(
+                children: [
+                  SizedBox(
+                    height: 96,
+                    child: ListView.separated(
+                      controller: _categoryScrollController,
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.only(right: 44),
+                      itemCount: _categories.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: 10),
+                      itemBuilder: (context, index) {
+                        final category = _categories[index];
+                        return CategoryTile(
+                          icon: category.icon,
+                          label: category.label,
+                          onTap: () {
+                            ref
+                                .read(exploreCategoryProvider.notifier)
+                                .set(category.tag);
+                            ref
+                                .read(navigationIndexProvider.notifier)
+                                .select(AppShell.explore);
+                          },
+                        );
                       },
-                    );
-                  },
-                ),
+                    ),
+                  ),
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    bottom: 0,
+                    child: IgnorePointer(
+                      child: Container(
+                        width: 56,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Color(0x00161618), AppColors.background],
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    right: 3,
+                    top: 0,
+                    bottom: 0,
+                    child: Center(
+                      child: _CircleAction(
+                        icon: Icons.arrow_forward_ios_rounded,
+                        tooltip: 'Ver más categorías',
+                        onTap: _scrollCategories,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
 
@@ -217,8 +290,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         _keyFor(ingredient, catalog),
                     }..removeWhere((key) => key.isEmpty);
 
+                    final visibleRecipes = recipes
+                        .where((recipe) => !hiddenIds.contains(recipe.id))
+                        .toList();
                     final matches = const RecipeMatcher()
-                        .match(recipes: recipes, availableKeys: available)
+                        .match(
+                          recipes: visibleRecipes,
+                          availableKeys: available,
+                        )
                         .take(4)
                         .toList();
                     final favoriteIds =
@@ -232,10 +311,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         for (final match in matches) ...[
                           RecipeCard(
                             match: match,
+                            hasIngredients: available.isNotEmpty,
                             isFavorite: favoriteIds.contains(match.recipe.id),
                             onFavoriteTap: () => ref
                                 .read(favoritesProvider.notifier)
                                 .toggle(match.recipe.id),
+                            onHideTap: () => _hideWithUndo(match.recipe),
                             onTap: () => Navigator.of(context).pushNamed(
                               AppRoutes.recipeDetail,
                               arguments: match.recipe.id,
@@ -291,6 +372,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
       ],
+    );
+  }
+
+  void _scrollCategories() {
+    final controller = _categoryScrollController;
+    if (!controller.hasClients) return;
+    final target = (controller.offset + 342).clamp(
+      0.0,
+      controller.position.maxScrollExtent,
+    );
+    controller.animateTo(
+      target.toDouble(),
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOut,
+    );
+  }
+
+  Future<void> _hideWithUndo(Recipe recipe) async {
+    final notifier = ref.read(hiddenRecipesProvider.notifier);
+    await notifier.hide(recipe.id, recipe.title);
+    if (!mounted) return;
+    showUndoSnackBar(
+      context,
+      message: '${recipe.title} se ocultó de tus listados.',
+      actionLabel: 'Deshacer',
+      onUndo: () => notifier.unhide(recipe.id),
     );
   }
 
@@ -411,7 +518,7 @@ class _FeaturedHero extends StatelessWidget {
           imagePath: 'assets/images/recipes/myplate-frittata-jardin.jpg',
           height: 244,
           borderRadius: BorderRadius.circular(26),
-          showBottomShade: true,
+          shade: BoxGradient.heroShade,
           semanticLabel: 'Fotografía de una frittata de verduras',
         ),
         Positioned(
@@ -451,6 +558,13 @@ class _FeaturedHero extends StatelessWidget {
                   fontWeight: FontWeight.w900,
                   color: AppColors.textPrimary,
                   height: 1.15,
+                  shadows: [
+                    Shadow(
+                      color: Color(0xE6000000),
+                      blurRadius: 10,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 6),
@@ -459,7 +573,14 @@ class _FeaturedHero extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12,
                   height: 1.35,
-                  color: Color(0xFFDDD8D0),
+                  color: Color(0xFFF2EDE5),
+                  shadows: [
+                    Shadow(
+                      color: Color(0xD9000000),
+                      blurRadius: 8,
+                      offset: Offset(0, 1),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 14),

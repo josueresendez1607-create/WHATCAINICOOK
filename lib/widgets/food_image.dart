@@ -15,6 +15,7 @@ class FoodImage extends StatelessWidget {
     this.fit = BoxFit.cover,
     this.borderRadius,
     this.showBottomShade = false,
+    this.shade,
     this.semanticLabel,
   });
 
@@ -24,6 +25,9 @@ class FoodImage extends StatelessWidget {
   final BoxFit fit;
   final BorderRadius? borderRadius;
   final bool showBottomShade;
+
+  /// Degradado personalizado (por ejemplo, más oscuro para texto sobre foto).
+  final BoxDecoration? shade;
   final String? semanticLabel;
 
   @override
@@ -63,7 +67,8 @@ class FoodImage extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             image,
-            if (showBottomShade)
+            if (shade != null) DecoratedBox(decoration: shade!),
+            if (shade == null && showBottomShade)
               const DecoratedBox(decoration: BoxGradient.bottomShade),
           ],
         ),
@@ -143,6 +148,22 @@ abstract final class BoxGradient {
   static const bottomShade = BoxDecoration(
     gradient: LinearGradient(
       colors: [Colors.transparent, Color(0xB3161618)],
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+    ),
+  );
+
+  /// Degradado intenso para la tarjeta destacada: mantiene legibles el título
+  /// y la descripción incluso sobre zonas claras de la fotografía.
+  static const heroShade = BoxDecoration(
+    gradient: LinearGradient(
+      colors: [
+        Color(0x80161618),
+        Color(0xD9161618),
+        Color(0xF2161618),
+        Color(0xFA161618),
+      ],
+      stops: [0.0, 0.42, 0.72, 1.0],
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
     ),

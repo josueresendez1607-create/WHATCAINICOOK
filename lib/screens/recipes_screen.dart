@@ -6,10 +6,12 @@ import 'package:whatcanicook/core/routes.dart';
 import 'package:whatcanicook/core/theme.dart';
 import 'package:whatcanicook/models/ingredient.dart';
 import 'package:whatcanicook/models/ingredient_catalog.dart';
+import 'package:whatcanicook/models/recipe.dart';
 import 'package:whatcanicook/models/recipe_match.dart';
 import 'package:whatcanicook/models/user_profile.dart';
 import 'package:whatcanicook/providers/app_providers.dart';
 import 'package:whatcanicook/services/recipe_matcher.dart';
+import 'package:whatcanicook/utils/feedback.dart';
 import 'package:whatcanicook/widgets/empty_state.dart';
 import 'package:whatcanicook/widgets/recipe_card.dart';
 import 'package:whatcanicook/widgets/section_header.dart';
@@ -76,6 +78,13 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
     final profileAsync = ref.watch(profileProvider);
     final catalogAsync = ref.watch(ingredientCatalogProvider);
     final favoritesAsync = ref.watch(favoritesProvider);
+    final hiddenIds =
+        ref
+            .watch(hiddenRecipesProvider)
+            .valueOrNull
+            ?.map((h) => h.recipeId)
+            .toSet() ??
+        <String>{};
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 36),
@@ -245,7 +254,7 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
           ingredientsAsync.when(
             data: (items) => Text(
               items.isEmpty
-                  ? 'Tienes 0 ingredientes. Agrega algunos para mejorar la coincidencia.'
+                  ? 'Agrega ingredientes para descubrir qué puedes cocinar hoy.'
                   : 'Usando ${items.length} ingredientes de tu lista.',
               style: const TextStyle(
                 fontSize: 12,
@@ -297,7 +306,9 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
                       profile: profile ?? UserProfile.empty,
                     );
                 final visible = _filterMatches(
-                  source,
+                  source
+                      .where((m) => !hiddenIds.contains(m.recipe.id))
+                      .toList(),
                   catalog,
                   _generated == null ? _count : source.length,
                 );
@@ -329,10 +340,12 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
                       for (final match in visible) ...[
                         RecipeCard(
                           match: match,
+                          hasIngredients: available.isNotEmpty,
                           isFavorite: favoriteIds.contains(match.recipe.id),
                           onFavoriteTap: () => ref
                               .read(favoritesProvider.notifier)
                               .toggle(match.recipe.id),
+                          onHideTap: () => _hideWithUndo(match.recipe),
                           onTap: () => Navigator.of(context).pushNamed(
                             AppRoutes.recipeDetail,
                             arguments: match.recipe.id,
@@ -367,6 +380,18 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _hideWithUndo(Recipe recipe) async {
+    final notifier = ref.read(hiddenRecipesProvider.notifier);
+    await notifier.hide(recipe.id, recipe.title);
+    if (!mounted) return;
+    showUndoSnackBar(
+      context,
+      message: '${recipe.title} se ocultó de tus listados.',
+      actionLabel: 'Deshacer',
+      onUndo: () => notifier.unhide(recipe.id),
     );
   }
 
@@ -463,7 +488,15 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
           note = '$message Se aplicó el ranking local del catálogo verificado.';
       }
 
+      final hiddenIds =
+          ref
+              .read(hiddenRecipesProvider)
+              .valueOrNull
+              ?.map((h) => h.recipeId)
+              .toSet() ??
+          <String>{};
       results = results.where((match) {
+        if (hiddenIds.contains(match.recipe.id)) return false;
         if (_category == null) return true;
         return match.recipe.tags.contains(_category);
       }).toList();

@@ -475,15 +475,13 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
               )
               .toList();
           note = value.usedGemini
-              ? 'Gemini (${value.model ?? 'modelo configurado'}) seleccionó '
-                    '${value.recipes.length} recetas del catálogo verificado.'
-              : 'Selección local sobre el catálogo verificado: '
-                    '${value.warning ?? 'IA no disponible'}.';
+              ? 'IA: ${value.recipes.length} recetas seleccionadas del catálogo verificado.'
+              : 'Mostrando recetas del catálogo verificado según tus ingredientes.';
           if (value.warning != null && value.usedGemini) {
             note = '$note ${value.warning}';
           }
 
-        case AppFailure(:final message):
+        case AppFailure():
           final fallback = matcher.match(
             recipes: recipes,
             availableKeys: available,
@@ -492,7 +490,7 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
             profile: profile,
           );
           results = fallback.take(_count).toList();
-          note = '$message Se aplicó el ranking local del catálogo verificado.';
+          note = 'Mostrando recetas del catálogo verificado según tus ingredientes.';
       }
 
       final hiddenIds =

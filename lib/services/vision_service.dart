@@ -110,11 +110,7 @@ class VisionService {
       final uri = Uri.parse('$_baseUrl/api/vision/ingredients');
       final request = http.MultipartRequest('POST', uri)
         ..files.add(
-          http.MultipartFile.fromBytes(
-            'image',
-            bytes,
-            filename: 'photo.jpg',
-          ),
+          http.MultipartFile.fromBytes('image', bytes, filename: 'photo.jpg'),
         );
 
       final streamed = await request.send().timeout(

@@ -480,9 +480,7 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
             if (value.warning != null) note = '$note ${value.warning}';
           } else {
             final warning = value.warning ?? '';
-            note = warning.toLowerCase().contains('límite gratuito')
-                ? warning
-                : 'Mostrando recetas del catálogo verificado según tus ingredientes.';
+            note = warning.toLowerCase().contains('límite gratuito') ? warning : 'Mostrando recetas del catálogo verificado según tus ingredientes.';
           }
 
         case AppFailure(:final message):
@@ -495,9 +493,7 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
           );
           results = fallback.take(_count).toList();
           final msg = message.toLowerCase();
-          note = msg.contains('límite gratuito')
-              ? message
-              : 'Mostrando recetas del catálogo verificado según tus ingredientes.';
+          note = msg.contains('límite gratuito') ? message : 'Mostrando recetas del catálogo verificado según tus ingredientes.';
       }
 
       final hiddenIds =

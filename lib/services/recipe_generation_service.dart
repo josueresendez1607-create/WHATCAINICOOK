@@ -81,8 +81,8 @@ class RecipeGenerationService {
 
   static final Map<String, RecipeGenerationResult> _cache =
       <String, RecipeGenerationResult>{};
-  static final Map<String, Future<AppResult<RecipeGenerationResult>>> _inFlight =
-      <String, Future<AppResult<RecipeGenerationResult>>>{};
+  static final Map<String, Future<AppResult<RecipeGenerationResult>>>
+  _inFlight = <String, Future<AppResult<RecipeGenerationResult>>>{};
   static DateTime? _cooldownUntil;
 
   bool get isConfigured => _baseUrl.isNotEmpty;
@@ -102,23 +102,21 @@ class RecipeGenerationService {
     required int count,
     required List<String> filters,
   }) {
-    final normIngredients = ingredients
-        .map((e) => e.trim().toLowerCase())
-        .where((e) => e.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
-    final normFilters = filters
-        .map((e) => e.trim().toLowerCase())
-        .where((e) => e.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
-    return jsonEncode({
-      'i': normIngredients,
-      'f': normFilters,
-      'c': count,
-    });
+    final normIngredients =
+        ingredients
+            .map((e) => e.trim().toLowerCase())
+            .where((e) => e.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
+    final normFilters =
+        filters
+            .map((e) => e.trim().toLowerCase())
+            .where((e) => e.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
+    return jsonEncode({'i': normIngredients, 'f': normFilters, 'c': count});
   }
 
   Future<AppResult<RecipeGenerationResult>> generate({

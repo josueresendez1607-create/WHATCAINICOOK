@@ -111,9 +111,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const Flexible(child: AppLogo(height: 48)),
-                  const Spacer(),
+                  const AppLogo(height: 44),
                   _CircleAction(
                     icon: Icons.settings_outlined,
                     tooltip: 'Configuración',
@@ -256,67 +257,117 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               const SizedBox(height: 24),
 
               ingredientsAsync.when(
-                data: (items) => Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    SectionHeader(
-                      title: 'Mis ingredientes',
-                      subtitle: items.isEmpty
-                          ? 'Aún no tienes ingredientes guardados.'
-                          : '${items.length} ingrediente${items.length == 1 ? '' : 's'} en tu lista.',
-                      action: TextButton(
-                        onPressed: () =>
-                            Navigator.of(context)
-                                .pushNamed(AppRoutes.manualIngredients),
-                        child: const Text('Administrar'),
+                data: (items) {
+                  final preview = items.take(5).toList();
+                  final remaining = items.length - preview.length;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SectionHeader(
+                        title: 'Mis ingredientes',
+                        subtitle: items.isEmpty
+                            ? 'Aún no tienes ingredientes guardados.'
+                            : '${items.length} ingrediente${items.length == 1 ? '' : 's'} en tu lista.',
+                        action: TextButton(
+                          onPressed: () => items.isEmpty
+                              ? Navigator.of(context)
+                                    .pushNamed(AppRoutes.manualIngredients)
+                              : _showIngredientsSheet(items),
+                          child: Text(items.isEmpty ? 'Agregar' : 'Ver todos'),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    if (items.isEmpty)
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(14),
-                          child: Text(
-                            'Agrega ingredientes con cámara, galería o manualmente para ver recetas personalizadas.',
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 12,
-                              height: 1.35,
+                      const SizedBox(height: 12),
+                      if (items.isEmpty)
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(14),
+                            child: Text(
+                              'Agrega ingredientes con cámara, galería o manualmente para ver recetas personalizadas.',
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 12,
+                                height: 1.35,
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Row(
+                                    children: [
+                                      for (
+                                        var i = 0;
+                                        i < preview.length;
+                                        i++
+                                      ) ...[
+                                        InputChip(
+                                          label: Text(preview[i].name),
+                                          onDeleted: preview[i].id == null
+                                              ? null
+                                              : () => ref
+                                                    .read(
+                                                      ingredientsProvider
+                                                          .notifier,
+                                                    )
+                                                    .remove(preview[i].id!),
+                                          deleteIcon: const Icon(
+                                            Icons.close_rounded,
+                                            size: 16,
+                                          ),
+                                          visualDensity: VisualDensity.compact,
+                                          materialTapTargetSize:
+                                              MaterialTapTargetSize.shrinkWrap,
+                                        ),
+                                        if (i != preview.length - 1 ||
+                                            remaining > 0)
+                                          const SizedBox(width: 8),
+                                      ],
+                                      if (remaining > 0)
+                                        ActionChip(
+                                          label: Text('+$remaining más'),
+                                          onPressed: () =>
+                                              _showIngredientsSheet(items),
+                                          visualDensity: VisualDensity.compact,
+                                          materialTapTargetSize:
+                                              MaterialTapTargetSize.shrinkWrap,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.touch_app_outlined,
+                                      size: 14,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        'Desliza para verlos, toca "+ más" para ver todos o editar.',
+                                        style: TextStyle(
+                                          color: AppColors.textSecondary,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
                         ),
-                      )
-                    else
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          for (final item in items.take(12))
-                            InputChip(
-                              label: Text(item.name),
-                              onDeleted: item.id == null
-                                  ? null
-                                  : () => ref
-                                        .read(ingredientsProvider.notifier)
-                                        .remove(item.id!),
-                              deleteIcon: const Icon(
-                                Icons.close_rounded,
-                                size: 16,
-                              ),
-                              visualDensity: VisualDensity.compact,
-                            ),
-                          if (items.length > 12)
-                            ActionChip(
-                              label: Text('+${items.length - 12} más'),
-                              onPressed: () =>
-                                  Navigator.of(context)
-                                      .pushNamed(AppRoutes.manualIngredients),
-                              visualDensity: VisualDensity.compact,
-                            ),
-                        ],
-                      ),
-                  ],
-                ),
+                    ],
+                  );
+                },
                 loading: () => const SectionHeader(
                   title: 'Mis ingredientes',
                   subtitle: 'Cargando ingredientes...',
@@ -474,6 +525,144 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  void _showIngredientsSheet(List<Ingredient> items) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.62,
+          minChildSize: 0.4,
+          maxChildSize: 0.9,
+          builder: (context, scrollController) {
+            return Consumer(
+              builder: (context, ref, _) {
+                final current =
+                    ref.watch(ingredientsProvider).valueOrNull ?? items;
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: AppColors.border,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Mis ingredientes (${current.length})',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                          TextButton.icon(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              Navigator.of(context)
+                                  .pushNamed(AppRoutes.manualIngredients);
+                            },
+                            icon: const Icon(Icons.edit_outlined, size: 18),
+                            label: const Text('Administrar'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Expanded(
+                        child: current.isEmpty
+                            ? const Center(
+                                child: Text(
+                                  'No tienes ingredientes guardados.',
+                                  style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              )
+                            : ListView.separated(
+                                controller: scrollController,
+                                itemCount: current.length,
+                                separatorBuilder: (_, _) =>
+                                    const Divider(height: 1),
+                                itemBuilder: (context, index) {
+                                  final item = current[index];
+                                  return ListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    leading: Container(
+                                      width: 36,
+                                      height: 36,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.gold.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(
+                                        Icons.kitchen_outlined,
+                                        color: AppColors.gold,
+                                        size: 18,
+                                      ),
+                                    ),
+                                    title: Text(
+                                      item.name,
+                                      style: const TextStyle(
+                                        color: AppColors.textPrimary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    subtitle:
+                                        item.quantity == null ||
+                                            item.quantity!.isEmpty
+                                        ? null
+                                        : Text(
+                                            item.quantity!,
+                                            style: const TextStyle(
+                                              color: AppColors.textSecondary,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                    trailing: IconButton(
+                                      tooltip: 'Eliminar',
+                                      icon: const Icon(
+                                        Icons.close_rounded,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                      onPressed: item.id == null
+                                          ? null
+                                          : () => ref
+                                                .read(
+                                                  ingredientsProvider.notifier,
+                                                )
+                                                .remove(item.id!),
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _openImage(ImageSource source) async {
     if (_scanning) return;
     if (!AppConfig.visionConfigured) {
@@ -569,14 +758,14 @@ class _CircleAction extends StatelessWidget {
           onTap: onTap,
           customBorder: const CircleBorder(),
           child: Container(
-            width: 40,
-            height: 40,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
               color: AppColors.card,
               shape: BoxShape.circle,
               border: Border.all(color: AppColors.border),
             ),
-            child: Icon(icon, color: AppColors.gold, size: 20),
+            child: Icon(icon, color: AppColors.gold, size: 21),
           ),
         ),
       ),

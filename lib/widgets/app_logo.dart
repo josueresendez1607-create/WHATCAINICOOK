@@ -78,48 +78,109 @@ class _LogoPainter extends CustomPainter {
     ..color = AppColors.gold
     ..style = PaintingStyle.stroke
     ..strokeWidth = 2.4
-    ..strokeCap = StrokeCap.round;
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round;
 
   static final _goldSoft = Paint()
     ..color = AppColors.gold.withValues(alpha: 0.35)
     ..style = PaintingStyle.stroke
-    ..strokeWidth = 1.1;
+    ..strokeWidth = 1.1
+    ..strokeCap = StrokeCap.round;
+
+  static final _goldFill = Paint()
+    ..color = AppColors.gold.withValues(alpha: 0.12)
+    ..style = PaintingStyle.fill;
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.shortestSide * 0.46;
+    final r = size.shortestSide * 0.46;
 
-    canvas.drawCircle(center, radius, _goldSoft);
+    // Marco circular.
+    canvas.drawCircle(center, r, _goldSoft);
+    canvas.drawCircle(center, r * 0.92, _goldFill);
 
-    // Plato.
-    canvas.drawCircle(center, radius * 0.66, _gold);
-    canvas.drawCircle(center, radius * 0.46, _goldSoft);
+    // Tazón/plato hondo (relacionado a comida).
+    final bowlRect = Rect.fromCenter(
+      center: Offset(center.dx, center.dy + r * 0.18),
+      width: r * 1.18,
+      height: r * 0.72,
+    );
+    final bowl = Path()
+      ..moveTo(bowlRect.left, bowlRect.top)
+      ..quadraticBezierTo(
+        bowlRect.left,
+        bowlRect.bottom,
+        center.dx,
+        bowlRect.bottom,
+      )
+      ..quadraticBezierTo(
+        bowlRect.right,
+        bowlRect.bottom,
+        bowlRect.right,
+        bowlRect.top,
+      );
+    canvas.drawPath(bowl, _gold);
 
-    // Cubiertos estilizados.
-    final forkX = center.dx - radius * 0.30;
-    final knifeX = center.dx + radius * 0.30;
-    final top = center.dy - radius * 0.52;
-    final bottom = center.dy + radius * 0.52;
-
-    canvas.drawLine(Offset(forkX, top), Offset(forkX, bottom), _gold);
-    for (var i = -1; i <= 1; i++) {
-      final x = forkX + i * radius * 0.09;
-      canvas.drawLine(Offset(x, top), Offset(x, top + radius * 0.20), _gold);
-    }
-
-    canvas.drawLine(Offset(knifeX, top), Offset(knifeX, bottom), _gold);
+    // Borde superior del tazón.
     canvas.drawLine(
-      Offset(knifeX + radius * 0.10, top),
-      Offset(knifeX + radius * 0.10, top + radius * 0.30),
+      Offset(bowlRect.left - r * 0.04, bowlRect.top),
+      Offset(bowlRect.right + r * 0.04, bowlRect.top),
       _gold,
     );
 
-    // Chispa de IA.
-    final spark = Offset(center.dx, top - radius * 0.20);
-    final s = radius * 0.16;
-    canvas.drawLine(spark - Offset(s, 0), spark + Offset(s, 0), _gold);
-    canvas.drawLine(spark - Offset(0, s), spark + Offset(0, s), _gold);
+    // Base pequeña.
+    canvas.drawLine(
+      Offset(center.dx - r * 0.18, bowlRect.bottom),
+      Offset(center.dx + r * 0.18, bowlRect.bottom),
+      _goldSoft,
+    );
+
+    // Hojita/ingrediente fresco sobre el tazón.
+    final leafCenter = Offset(center.dx + r * 0.10, center.dy - r * 0.02);
+    final leaf = Path()
+      ..moveTo(leafCenter.dx - r * 0.18, leafCenter.dy + r * 0.10)
+      ..quadraticBezierTo(
+        leafCenter.dx - r * 0.02,
+        leafCenter.dy - r * 0.22,
+        leafCenter.dx + r * 0.22,
+        leafCenter.dy - r * 0.08,
+      )
+      ..quadraticBezierTo(
+        leafCenter.dx + r * 0.08,
+        leafCenter.dy + r * 0.16,
+        leafCenter.dx - r * 0.18,
+        leafCenter.dy + r * 0.10,
+      );
+    canvas.drawPath(leaf, _goldSoft);
+    canvas.drawLine(
+      Offset(leafCenter.dx - r * 0.14, leafCenter.dy + r * 0.08),
+      Offset(leafCenter.dx + r * 0.16, leafCenter.dy - r * 0.05),
+      _goldSoft,
+    );
+
+    // Vapor/calor (comida recién preparada).
+    void steam(double x, double height, double phase) {
+      final top = center.dy - r * 0.62;
+      final path = Path()..moveTo(center.dx + x, top + height);
+      path.quadraticBezierTo(
+        center.dx + x + phase,
+        top + height * 0.66,
+        center.dx + x,
+        top + height * 0.33,
+      );
+      path.quadraticBezierTo(
+        center.dx + x - phase,
+        top + height * 0.12,
+        center.dx + x + phase * 0.35,
+        top,
+      );
+      canvas.drawPath(path, _gold);
+    }
+
+    steam(-r * 0.22, r * 0.34, r * 0.07);
+    steam(0, r * 0.40, r * 0.08);
+    steam(r * 0.22, r * 0.34, r * 0.07);
   }
 
   @override

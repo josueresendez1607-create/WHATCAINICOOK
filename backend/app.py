@@ -548,20 +548,17 @@ def generate_recipes():
             filled_locally.append(recipe_id)
 
     chosen = [RECIPE_BY_ID[recipe_id] for recipe_id in selected if recipe_id in RECIPE_BY_ID]
-    warning = (
-        "Gemini seleccionó parte del catálogo; el resto se completó con ranking local."
-        if filled_locally
-        else "Selección local sobre el catálogo verificado."
-        if mode == "local"
-        else None
-    )
-    if gemini_note and mode == "local":
-        warning = f"{gemini_note} {warning}"
+    if mode == "gemini" and filled_locally:
+        warning = "Gemini seleccionó parte del catálogo; el resto se completó con ranking local."
+    elif mode == "gemini":
+        warning = None
+    else:
+        warning = "Selección local sobre el catálogo verificado."
 
     return jsonify(
         {
             "mode": mode,
-            "model": gemini_note if mode == "gemini" else None,
+            "model": MODEL if mode == "gemini" else None,
             "selected": selected,
             "recipes": chosen,
             "reasons": reasons,

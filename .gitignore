@@ -66,4 +66,5 @@ android/app/debug.keystore
 releases/*.aab
 releases/*.apk
 !releases/.gitkeep
+emulator_screen.png
 

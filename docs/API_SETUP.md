@@ -98,10 +98,45 @@ flutter build apk --release --dart-define=WHATCANICOOK_API_BASE_URL=https://tu-d
 
 | Método | Ruta | Descripción |
 | --- | --- | --- |
-| `GET` | `/api/health` | Estado del backend e indicador `aiConfigured` |
-| `POST` | `/api/vision/ingredients` | Recibe `multipart/form-data` con el campo `image` (JPEG/PNG/WebP, máx. 12 MB) y devuelve `{ingredients:[{name, confidence}], warning}` |
+| `GET` | `/api/health` | Estado, modelo, catálogo e indicador `aiConfigured` |
+| `POST` | `/api/vision/ingredients` | `multipart/form-data` con campo `image` (JPEG/PNG/WebP, máx. 12 MB) → `{ingredients:[{name, confidence}], model, warning}` |
+| `POST` | `/api/recipes/generate` | JSON con `ingredients`, `count` y `filters` → selección verificada |
+| `GET` | `/api/recipes` | Catálogo con `q`, `category` y `limit` opcionales |
+| `GET` | `/api/recipes/{id}` | Detalle de una receta verificada |
 
 El prompt del backend pide **únicamente JSON** con nombres de alimentos visibles. No se solicitan cantidades exactas, marcas, caducidades ni nutrición a la IA.
+
+### Generación asistida (sin recetas inventadas)
+
+`POST /api/recipes/generate`:
+
+```json
+{
+  "ingredients": ["tomate", "frijol negro", "cebolla"],
+  "count": 5,
+  "filters": ["comida", "vegetariana"]
+}
+```
+
+Gemini recibe un **catálogo cerrado** de IDs oficiales y solo puede devolver IDs de ese catálogo. El backend descarta cualquier ID inventado, completa con ranking local si hace falta y devuelve las recetas completas desde `assets/data/recipes.json`.
+
+Respuesta resumida:
+
+```json
+{
+  "mode": "gemini",
+  "model": "gemini-3.8-flash",
+  "selected": ["myplate-id-1", "myplate-id-2"],
+  "recipes": [],
+  "reasons": {"myplate-id-1": "Coincide con tus ingredientes"},
+  "filledLocally": [],
+  "totalCandidates": 13,
+  "verifiedOnly": true,
+  "warning": null
+}
+```
+
+`mode: "local"` significa que Gemini no estuvo disponible y se aplicó el ranking determinista, siempre sobre el mismo catálogo verificado.
 
 ## 6. CORS
 

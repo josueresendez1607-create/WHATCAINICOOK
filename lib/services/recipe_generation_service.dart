@@ -88,7 +88,7 @@ class RecipeGenerationService {
   }) async {
     if (!isConfigured) {
       return const AppFailure(
-        'El backend no está configurado para generar recomendaciones.',
+        'Modo sin conexión. Usando el catálogo verificado del dispositivo.',
       );
     }
 

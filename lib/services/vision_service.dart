@@ -35,8 +35,8 @@ class VisionService {
   Future<AppResult<VisionAnalysis>> analyze(File image) async {
     if (!isConfigured) {
       return const AppFailure(
-        'El análisis con IA no está configurado. Configura WHATCANICOOK_API_BASE_URL '
-        'o usa la selección manual de ingredientes.',
+        'El análisis de fotos no está disponible sin conexión. '
+        'Puedes agregar ingredientes manualmente.',
       );
     }
 
@@ -80,7 +80,8 @@ class VisionService {
       );
     } on SocketException {
       return const AppFailure(
-        'No se pudo conectar con el servidor de IA. Revisa la red y la URL configurada.',
+        'No se pudo conectar con el servicio de IA. '
+        'Puedes agregar ingredientes manualmente.',
       );
     } on http.ClientException {
       return const AppFailure('Error de red al enviar la imagen.');

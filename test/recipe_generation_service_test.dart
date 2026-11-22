@@ -106,7 +106,7 @@ void main() {
     expect(result, isA<AppFailure<RecipeGenerationResult>>());
     expect(
       (result as AppFailure<RecipeGenerationResult>).message,
-      contains('no está configurado'),
+      contains('Modo sin conexión'),
     );
   });
 }

@@ -418,8 +418,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     try {
       final picked = await ImagePicker().pickImage(
         source: source,
-        imageQuality: 85,
-        maxWidth: 1600,
+        imageQuality: 70,
+        maxWidth: 1280,
+        maxHeight: 1280,
       );
       if (picked == null) {
         if (mounted) setState(() => _scanning = false);

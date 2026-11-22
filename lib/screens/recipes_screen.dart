@@ -61,16 +61,23 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
   @override
   Widget build(BuildContext context) {
     ref.listen<String?>(exploreCategoryProvider, (previous, next) {
-      if (next != null && next != _category) {
+      if (next == null) return;
+      if (next == '__all__') {
+        if (_category != null || _generated != null) {
+          setState(() {
+            _category = null;
+            _generated = null;
+            _generationNote = null;
+          });
+        }
+      } else if (next != _category) {
         setState(() {
           _category = next;
           _generated = null;
           _generationNote = null;
         });
       }
-      if (next != null) {
-        ref.read(exploreCategoryProvider.notifier).clear();
-      }
+      ref.read(exploreCategoryProvider.notifier).clear();
     });
 
     final recipesAsync = ref.watch(recipesProvider);

@@ -411,7 +411,7 @@ def analyze_ingredients():
         return _error(
             "Gemini rechazó la solicitud.",
             502,
-            status=response.status_code,
+            upstream_status=response.status_code,
             detail=str(response.text)[:300],
         )
 

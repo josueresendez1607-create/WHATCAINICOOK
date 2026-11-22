@@ -31,8 +31,9 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
     try {
       final picked = await ImagePicker().pickImage(
         source: source,
-        imageQuality: 85,
-        maxWidth: 1600,
+        imageQuality: 70,
+        maxWidth: 1280,
+        maxHeight: 1280,
       );
       if (picked == null) {
         if (mounted) setState(() => _loading = false);

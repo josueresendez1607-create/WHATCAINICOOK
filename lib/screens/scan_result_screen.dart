@@ -115,6 +115,7 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
     if (!mounted) return;
 
     ref.read(scanDraftProvider.notifier).clear();
+    ref.read(exploreCategoryProvider.notifier).set('__all__');
     ref.read(navigationIndexProvider.notifier).select(AppShell.explore);
     Navigator.of(context).pop();
   }

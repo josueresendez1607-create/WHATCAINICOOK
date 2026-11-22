@@ -256,6 +256,79 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               const SizedBox(height: 24),
 
               ingredientsAsync.when(
+                data: (items) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SectionHeader(
+                      title: 'Mis ingredientes',
+                      subtitle: items.isEmpty
+                          ? 'Aún no tienes ingredientes guardados.'
+                          : '${items.length} ingrediente${items.length == 1 ? '' : 's'} en tu lista.',
+                      action: TextButton(
+                        onPressed: () =>
+                            Navigator.of(context)
+                                .pushNamed(AppRoutes.manualIngredients),
+                        child: const Text('Administrar'),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (items.isEmpty)
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Text(
+                            'Agrega ingredientes con cámara, galería o manualmente para ver recetas personalizadas.',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final item in items.take(12))
+                            InputChip(
+                              label: Text(item.name),
+                              onDeleted: item.id == null
+                                  ? null
+                                  : () => ref
+                                        .read(ingredientsProvider.notifier)
+                                        .remove(item.id!),
+                              deleteIcon: const Icon(
+                                Icons.close_rounded,
+                                size: 16,
+                              ),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          if (items.length > 12)
+                            ActionChip(
+                              label: Text('+${items.length - 12} más'),
+                              onPressed: () =>
+                                  Navigator.of(context)
+                                      .pushNamed(AppRoutes.manualIngredients),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                        ],
+                      ),
+                  ],
+                ),
+                loading: () => const SectionHeader(
+                  title: 'Mis ingredientes',
+                  subtitle: 'Cargando ingredientes...',
+                ),
+                error: (_, _) => const SectionHeader(
+                  title: 'Mis ingredientes',
+                  subtitle: 'No se pudieron cargar los ingredientes.',
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              ingredientsAsync.when(
                 data: (items) => SectionHeader(
                   title: items.isEmpty
                       ? 'Recetas destacadas'
@@ -495,14 +568,14 @@ class _CircleAction extends StatelessWidget {
           onTap: onTap,
           customBorder: const CircleBorder(),
           child: Container(
-            width: 42,
-            height: 42,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
               color: AppColors.card,
               shape: BoxShape.circle,
               border: Border.all(color: AppColors.border),
             ),
-            child: Icon(icon, color: AppColors.gold, size: 21),
+            child: Icon(icon, color: AppColors.gold, size: 20),
           ),
         ),
       ),

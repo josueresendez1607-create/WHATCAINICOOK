@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatcanicook/core/async_value_ext.dart';
-import 'package:whatcanicook/core/result.dart';
 import 'package:whatcanicook/core/routes.dart';
 import 'package:whatcanicook/core/theme.dart';
 import 'package:whatcanicook/models/ingredient.dart';
@@ -25,24 +24,15 @@ class RecipesScreen extends ConsumerStatefulWidget {
 
 class _RecipesScreenState extends ConsumerState<RecipesScreen> {
   final _searchController = TextEditingController();
-  final Set<RecipeFilter> _filters = {};
-  RecipeSort _sort = RecipeSort.match;
-  int _count = 5;
-  String? _category;
+  final _manualIngredientController = TextEditingController();
+  final Set<int> _selectedIngredientIds = <int>{};
+  final Set<int> _knownIngredientIds = <int>{};
+  bool _ingredientsSelectionInitialized = false;
+  final int _count = 5;
   List<RecipeMatch>? _generated;
   String? _generationNote;
   bool _loading = false;
-
-  static const List<_CategoryOption> _categories = [
-    _CategoryOption(label: 'Todos', tag: null),
-    _CategoryOption(label: 'Desayunos', tag: 'desayuno'),
-    _CategoryOption(label: 'Comidas', tag: 'comida'),
-    _CategoryOption(label: 'Cenas', tag: 'cena'),
-    _CategoryOption(label: 'Postres', tag: 'postres'),
-    _CategoryOption(label: 'Ensaladas', tag: 'ensaladas'),
-    _CategoryOption(label: 'Bebidas', tag: 'bebidas'),
-    _CategoryOption(label: 'Saludables', tag: 'saludable'),
-  ];
+  int _generationRequestId = 0;
 
   @override
   void initState() {
@@ -55,34 +45,64 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _manualIngredientController.dispose();
     super.dispose();
+  }
+
+  void _syncIngredientSelection(
+    List<Ingredient> ingredients, {
+    required bool notify,
+  }) {
+    final currentIds = <int>{
+      for (final ingredient in ingredients)
+        if (ingredient.id != null) ingredient.id!,
+    };
+    final newIds = currentIds.difference(_knownIngredientIds);
+    var changed = false;
+
+    if (!_ingredientsSelectionInitialized) {
+      _selectedIngredientIds
+        ..clear()
+        ..addAll(currentIds);
+      _knownIngredientIds
+        ..clear()
+        ..addAll(currentIds);
+      _ingredientsSelectionInitialized = true;
+      changed = true;
+    } else {
+      final beforeSelected = _selectedIngredientIds.length;
+      _selectedIngredientIds.removeWhere((id) => !currentIds.contains(id));
+      if (_selectedIngredientIds.length != beforeSelected) changed = true;
+
+      final beforeKnown = _knownIngredientIds.length;
+      _knownIngredientIds.removeWhere((id) => !currentIds.contains(id));
+      if (_knownIngredientIds.length != beforeKnown) changed = true;
+
+      if (newIds.isNotEmpty) {
+        _selectedIngredientIds.addAll(newIds);
+        _knownIngredientIds.addAll(newIds);
+        changed = true;
+      }
+    }
+
+    if (changed && notify && mounted) {
+      setState(() {});
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<String?>(exploreCategoryProvider, (previous, next) {
-      if (next == null) return;
-      if (next == '__all__') {
-        if (_category != null || _generated != null) {
-          setState(() {
-            _category = null;
-            _generated = null;
-            _generationNote = null;
-          });
-        }
-      } else if (next != _category) {
-        setState(() {
-          _category = next;
-          _generated = null;
-          _generationNote = null;
-        });
-      }
-      ref.read(exploreCategoryProvider.notifier).clear();
+    ref.listen<AsyncValue<List<Ingredient>>>(ingredientsProvider, (_, next) {
+      final items = next.valueOrNull;
+      if (items != null) _syncIngredientSelection(items, notify: true);
     });
 
     final recipesAsync = ref.watch(recipesProvider);
     final ingredientsAsync = ref.watch(ingredientsProvider);
-    final profileAsync = ref.watch(profileProvider);
+    final ingredientsForSelection = ingredientsAsync.valueOrNull;
+    if (ingredientsForSelection != null) {
+      _syncIngredientSelection(ingredientsForSelection, notify: false);
+    }
     final catalogAsync = ref.watch(ingredientCatalogProvider);
     final favoritesAsync = ref.watch(favoritesProvider);
     final hiddenIds =
@@ -100,10 +120,10 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
         children: [
           const SectionHeader(
             title: 'Explorar recetas',
-            subtitle: 'Busca, filtra y genera ideas con IA desde recetas verificadas.',
+            subtitle:
+                'Selecciona tus ingredientes y genera recetas compatibles del catálogo verificado.',
           ),
           const SizedBox(height: 16),
-
           TextField(
             controller: _searchController,
             decoration: InputDecoration(
@@ -119,126 +139,32 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
             ),
           ),
           const SizedBox(height: 14),
-
-          SizedBox(
-            height: 40,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: _categories.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 8),
-              itemBuilder: (context, index) {
-                final option = _categories[index];
-                return ChoiceChip(
-                  label: Text(option.label),
-                  selected: _category == option.tag,
-                  showCheckmark: false,
-                  onSelected: (_) => setState(() {
-                    _category = option.tag;
-                    _generated = null;
-                    _generationNote = null;
-                  }),
-                );
-              },
-            ),
-          ),
+          _buildIngredientSelectionCard(ingredientsAsync, catalogAsync),
           const SizedBox(height: 14),
-
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.tune_rounded,
-                        color: AppColors.gold,
-                        size: 19,
-                      ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Filtros y generación',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
                   const Text(
-                    'Preferencias',
+                    'Generación de recetas',
                     style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textSecondary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 7,
-                    runSpacing: 7,
-                    children: [
-                      for (final filter in RecipeFilter.values)
-                        FilterChip(
-                          label: Text(filter.label),
-                          selected: _filters.contains(filter),
-                          showCheckmark: false,
-                          onSelected: (selected) => setState(() {
-                            if (selected) {
-                              _filters.add(filter);
-                            } else {
-                              _filters.remove(filter);
-                            }
-                            _generated = null;
-                            _generationNote = null;
-                          }),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'Cantidad',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ),
-                      SegmentedButton<int>(
-                        segments: const [
-                          ButtonSegment(value: 3, label: Text('3')),
-                          ButtonSegment(value: 5, label: Text('5')),
-                          ButtonSegment(value: 10, label: Text('10')),
-                        ],
-                        selected: {_count},
-                        onSelectionChanged: (values) =>
-                            setState(() => _count = values.first),
-                      ),
-                    ],
+                  const Text(
+                    'Se mostrarán recetas compatibles con los ingredientes seleccionados, priorizando las de mayor coincidencia.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.35,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: 14),
-                  DropdownButtonFormField<RecipeSort>(
-                    initialValue: _sort,
-                    decoration: const InputDecoration(
-                      labelText: 'Ordenar por',
-                      prefixIcon: Icon(Icons.sort_rounded),
-                    ),
-                    items: [
-                      for (final sort in RecipeSort.values)
-                        DropdownMenuItem(value: sort, child: Text(sort.label)),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) setState(() => _sort = value);
-                    },
-                  ),
-                  const SizedBox(height: 16),
                   FilledButton.icon(
                     onPressed: _loading ? null : _generate,
                     icon: _loading
@@ -257,24 +183,37 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
             ),
           ),
           const SizedBox(height: 16),
-
           ingredientsAsync.when(
-            data: (items) => Text(
-              items.isEmpty
+            data: (items) {
+              final selectedCount = items
+                  .where(
+                    (i) =>
+                        i.id != null && _selectedIngredientIds.contains(i.id),
+                  )
+                  .length;
+              final message = items.isEmpty
                   ? 'Agrega ingredientes para descubrir qué puedes cocinar hoy.'
-                  : 'Usando ${items.length} ingredientes de tu lista.',
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-              ),
-            ),
+                  : selectedCount == 0
+                  ? 'Selecciona al menos un ingrediente para generar recetas.'
+                  : 'Generación usará $selectedCount ingrediente${selectedCount == 1 ? '' : 's'} seleccionados.';
+              return Text(
+                message,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: selectedCount == 0 && items.isNotEmpty
+                      ? AppColors.gold
+                      : AppColors.textSecondary,
+                ),
+              );
+            },
             loading: () => const SizedBox.shrink(),
             error: (_, _) => const SizedBox.shrink(),
           ),
           if (_generationNote != null) ...[
             const SizedBox(height: 10),
             Container(
-              padding: const EdgeInsets.all(12),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
                 color: AppColors.card,
                 borderRadius: BorderRadius.circular(12),
@@ -283,7 +222,7 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
               child: Text(
                 _generationNote!,
                 style: const TextStyle(
-                  fontSize: 11,
+                  fontSize: 12,
                   height: 1.35,
                   color: AppColors.textSecondary,
                 ),
@@ -291,12 +230,10 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
             ),
           ],
           const SizedBox(height: 18),
-
           recipesAsync.when(
             data: (recipes) => ingredientsAsync.when(
               data: (ingredients) {
                 final catalog = catalogAsync.valueOrNull;
-                final profile = profileAsync.valueOrNull;
                 final available = <String>{
                   for (final ingredient in ingredients)
                     _keyFor(ingredient, catalog),
@@ -305,13 +242,16 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
                 final matcher = const RecipeMatcher();
                 final source =
                     _generated ??
-                    matcher.match(
-                      recipes: recipes,
-                      availableKeys: available,
-                      filters: _filters.toList(),
-                      sort: _sort,
-                      profile: profile ?? UserProfile.empty,
-                    );
+                    matcher
+                        .match(
+                          recipes: recipes,
+                          availableKeys: available,
+                          profile: UserProfile.empty,
+                        )
+                        .where((m) => m.matchedCount > 0)
+                        .take(_count)
+                        .toList();
+
                 final visible = _filterMatches(
                   source
                       .where((m) => !hiddenIds.contains(m.recipe.id))
@@ -330,18 +270,25 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
                   children: [
                     SectionHeader(
                       title: _generated == null
-                          ? 'Catálogo verificado'
+                          ? 'Recetas compatibles'
                           : 'Resultados generados',
-                      subtitle: 'Fuente: MyPlate (USDA). Etiquetas estimadas por la app.',
+                      subtitle:
+                          'Catálogo local verificado. Se priorizan las recetas con mayor coincidencia.',
                     ),
                     const SizedBox(height: 12),
                     if (visible.isEmpty)
                       EmptyState(
                         icon: Icons.search_off_rounded,
                         title: 'Sin coincidencias',
-                        message: 'Prueba con otro término, categoría o filtro.',
-                        actionLabel: 'Limpiar filtros',
-                        onAction: _resetFilters,
+                        message: _searchController.text.trim().isNotEmpty
+                            ? 'No hay recetas que coincidan con tu búsqueda actual.'
+                            : 'No encontramos recetas compatibles con los ingredientes seleccionados. Prueba agregar o cambiar ingredientes.',
+                        actionLabel: _searchController.text.trim().isNotEmpty
+                            ? 'Limpiar búsqueda'
+                            : null,
+                        onAction: _searchController.text.trim().isNotEmpty
+                            ? () => _searchController.clear()
+                            : null,
                       )
                     else
                       for (final match in visible) ...[
@@ -355,7 +302,7 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
                           onHideTap: () => _hideWithUndo(match.recipe),
                           onTap: () => Navigator.of(context).pushNamed(
                             AppRoutes.recipeDetail,
-                            arguments: match.recipe.id,
+                            arguments: match.recipe,
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -390,6 +337,277 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
     );
   }
 
+  Widget _buildIngredientSelectionCard(
+    AsyncValue<List<Ingredient>> ingredientsAsync,
+    AsyncValue<IngredientCatalog> catalogAsync,
+  ) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: ingredientsAsync.when(
+          data: (items) {
+            final catalog = catalogAsync.valueOrNull;
+            final selectedCount = items
+                .where(
+                  (i) => i.id != null && _selectedIngredientIds.contains(i.id),
+                )
+                .length;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.kitchen_rounded,
+                      color: AppColors.gold,
+                      size: 19,
+                    ),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Mis ingredientes',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.gold.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: AppColors.gold.withValues(alpha: 0.35),
+                        ),
+                      ),
+                      child: Text(
+                        '$selectedCount seleccionados',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.gold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Selecciona los ingredientes que quieres usar para generar recetas.',
+                  style: TextStyle(
+                    fontSize: 11,
+                    height: 1.35,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (items.isEmpty)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: const Text(
+                      'No tienes ingredientes guardados. Agrega al menos uno para generar recetas personalizadas.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: 1.35,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  )
+                else ...[
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final item in items)
+                        _buildIngredientChip(item, catalog),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      TextButton.icon(
+                        onPressed: () => setState(() {
+                          _selectedIngredientIds
+                            ..clear()
+                            ..addAll(
+                              items
+                                  .where((i) => i.id != null)
+                                  .map((i) => i.id!),
+                            );
+                        }),
+                        icon: const Icon(Icons.select_all_rounded, size: 16),
+                        label: const Text('Todos'),
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: () => setState(_selectedIngredientIds.clear),
+                        icon: const Icon(Icons.deselect_rounded, size: 16),
+                        label: const Text('Ninguno'),
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: _openManualIngredients,
+                        icon: const Icon(Icons.edit_note_rounded, size: 16),
+                        label: const Text('Administrar'),
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _manualIngredientController,
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) => _addManualIngredient(catalog),
+                        decoration: const InputDecoration(
+                          hintText: 'Agregar ingrediente manualmente...',
+                          prefixIcon: Icon(Icons.add_rounded),
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton(
+                      onPressed: () => _addManualIngredient(catalog),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(48, 48),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                      ),
+                      child: const Text('Agregar'),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+          loading: () => const Padding(
+            padding: EdgeInsets.all(8),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          error: (_, _) => const Text(
+            'No se pudieron cargar tus ingredientes.',
+            style: TextStyle(color: AppColors.danger, fontSize: 12),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIngredientChip(Ingredient item, IngredientCatalog? catalog) {
+    final id = item.id;
+    final selected = id != null && _selectedIngredientIds.contains(id);
+    final label = item.quantity == null || item.quantity!.isEmpty
+        ? item.name
+        : '${item.name} (${item.quantity})';
+    return FilterChip(
+      label: Text(label),
+      selected: selected,
+      showCheckmark: true,
+      checkmarkColor: AppColors.background,
+      selectedColor: AppColors.gold,
+      backgroundColor: AppColors.surface,
+      side: BorderSide(
+        color: selected
+            ? AppColors.gold
+            : AppColors.border.withValues(alpha: 0.9),
+      ),
+      labelStyle: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        color: selected ? AppColors.background : AppColors.textPrimary,
+      ),
+      onSelected: id == null
+          ? null
+          : (value) => setState(() {
+              if (value) {
+                _selectedIngredientIds.add(id);
+              } else {
+                _selectedIngredientIds.remove(id);
+              }
+              _generated = null;
+              _generationNote = null;
+            }),
+      onDeleted: id == null ? null : () => _removeIngredient(item),
+      deleteButtonTooltipMessage: 'Quitar de mi lista',
+      deleteIcon: Icon(
+        Icons.close_rounded,
+        size: 16,
+        color: selected ? AppColors.background : AppColors.textSecondary,
+      ),
+    );
+  }
+
+  Future<void> _addManualIngredient(IngredientCatalog? catalog) async {
+    final name = _manualIngredientController.text.trim();
+    if (name.isEmpty) return;
+    final key = catalog?.resolveKey(name);
+    final category = key == null
+        ? 'otros'
+        : catalog?.itemForKey(key)?.category ?? 'otros';
+    await ref.read(ingredientsProvider.notifier).add(
+      Ingredient(
+        name: name,
+        key: key,
+        category: category,
+        source: 'manual',
+      ),
+    );
+    _manualIngredientController.clear();
+    if (!mounted) return;
+    setState(() {
+      _generated = null;
+      _generationNote = null;
+    });
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$name agregado a tus ingredientes.')));
+  }
+
+  Future<void> _removeIngredient(Ingredient item) async {
+    final id = item.id;
+    if (id == null) return;
+    await ref.read(ingredientsProvider.notifier).remove(id);
+    if (!mounted) return;
+    setState(() {
+      _selectedIngredientIds.remove(id);
+      _knownIngredientIds.remove(id);
+      _generated = null;
+      _generationNote = null;
+    });
+  }
+
+  Future<void> _openManualIngredients() async {
+    await Navigator.of(context).pushNamed(AppRoutes.manualIngredients);
+    if (!mounted) return;
+    final items = ref.read(ingredientsProvider).valueOrNull;
+    if (items != null) _syncIngredientSelection(items, notify: true);
+  }
+
   Future<void> _hideWithUndo(Recipe recipe) async {
     final notifier = ref.read(hiddenRecipesProvider.notifier);
     await notifier.hide(recipe.id, recipe.title);
@@ -409,9 +627,6 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
   ) {
     final query = _normalize(_searchController.text);
     final matches = source.where((match) {
-      if (_category != null && !match.recipe.tags.contains(_category)) {
-        return false;
-      }
       if (query.isEmpty) return true;
       final haystack = <String>[
         match.recipe.title,
@@ -428,6 +643,7 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
 
   Future<void> _generate() async {
     if (_loading) return;
+    final requestId = ++_generationRequestId;
     setState(() {
       _loading = true;
       _generationNote = null;
@@ -436,66 +652,34 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
     try {
       final recipes = await ref.read(recipesProvider.future);
       final ingredients = await ref.read(ingredientsProvider.future);
-      final profile = await ref.read(profileProvider.future);
       final catalog = await ref.read(ingredientCatalogProvider.future);
 
-      final available = <String>{
-        for (final ingredient in ingredients) _keyFor(ingredient, catalog),
-      }..removeWhere((key) => key.isEmpty);
+      final selectedIngredients = ingredients
+          .where(
+            (ingredient) =>
+                ingredient.id != null &&
+                _selectedIngredientIds.contains(ingredient.id),
+          )
+          .toList();
 
-      final payload = <Map<String, String>>[
-        for (final ingredient in ingredients)
-          {'name': ingredient.name, 'key': _keyFor(ingredient, catalog)},
-      ];
-      final filterTags = <String>[
-        for (final filter in _filters) filter.tag,
-        ?_category,
-      ];
-
-      final service = ref.read(recipeGenerationServiceProvider);
-      final generation = await service.generate(
-        ingredients: payload
-            .map((item) => item.values.where((value) => value.isNotEmpty).first)
-            .toList(),
-        count: _count,
-        filters: filterTags,
-      );
-
-      final matcher = const RecipeMatcher();
-      List<RecipeMatch> results;
-      String note;
-
-      switch (generation) {
-        case AppSuccess(:final value):
-          results = value.recipes
-              .map(
-                (recipe) => matcher
-                    .match(recipes: [recipe], availableKeys: available)
-                    .first,
-              )
-              .toList();
-          if (value.usedGemini) {
-            note =
-                'IA: ${value.recipes.length} recetas seleccionadas del catálogo verificado.';
-            if (value.warning != null) note = '$note ${value.warning}';
-          } else {
-            final warning = value.warning ?? '';
-            note = warning.toLowerCase().contains('límite gratuito') ? warning : 'Mostrando recetas del catálogo verificado según tus ingredientes.';
-          }
-
-        case AppFailure(:final message):
-          final fallback = matcher.match(
-            recipes: recipes,
-            availableKeys: available,
-            filters: _filters.toList(),
-            sort: _sort,
-            profile: profile,
-          );
-          results = fallback.take(_count).toList();
-          final msg = message.toLowerCase();
-          note = msg.contains('límite gratuito') ? message : 'Mostrando recetas del catálogo verificado según tus ingredientes.';
+      if (selectedIngredients.isEmpty) {
+        if (!mounted) return;
+        setState(() {
+          _loading = false;
+          _generated = null;
+          _generationNote = ingredients.isEmpty
+              ? 'Agrega al menos un ingrediente para generar recetas.'
+              : 'Selecciona al menos un ingrediente para generar recetas.';
+        });
+        return;
       }
 
+      final available = <String>{
+        for (final ingredient in selectedIngredients)
+          _keyFor(ingredient, catalog),
+      }..removeWhere((key) => key.isEmpty);
+
+      final matcher = const RecipeMatcher();
       final hiddenIds =
           ref
               .read(hiddenRecipesProvider)
@@ -503,38 +687,68 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
               ?.map((h) => h.recipeId)
               .toSet() ??
           <String>{};
-      results = results.where((match) {
-        if (hiddenIds.contains(match.recipe.id)) return false;
-        if (_category == null) return true;
-        return match.recipe.tags.contains(_category);
-      }).toList();
 
-      await ref
-          .read(historyProvider.notifier)
-          .add('recetas', '$_count recetas · ${_filters.length} filtros');
-      if (!mounted) return;
+      final localResults = matcher
+          .match(
+            recipes: recipes,
+            availableKeys: available,
+            profile: UserProfile.empty,
+          )
+          .where((m) => !hiddenIds.contains(m.recipe.id))
+          .where((m) => m.matchedCount > 0)
+          .toList();
+
+      localResults.sort((a, b) {
+        final byScore = b.matchScore.compareTo(a.matchScore);
+        if (byScore != 0) return byScore;
+        final byMatched = b.matchedCount.compareTo(a.matchedCount);
+        if (byMatched != 0) return byMatched;
+        return a.missingCount.compareTo(b.missingCount);
+      });
+
+      final lastIds = ref.read(lastGeneratedRecipeIdsProvider).toSet();
+      final fresh = <RecipeMatch>[];
+      final repeated = <RecipeMatch>[];
+      for (final match in localResults) {
+        if (lastIds.contains(match.recipe.id)) {
+          repeated.add(match);
+        } else {
+          fresh.add(match);
+        }
+      }
+      final display = <RecipeMatch>[
+        ...fresh.take(_count),
+        if (fresh.length < _count) ...repeated.take(_count - fresh.length),
+      ];
+
+      final note = display.isEmpty
+          ? 'No hay recetas compatibles con los ingredientes seleccionados.'
+          : fresh.isEmpty
+          ? 'Mostrando recetas compatibles. Ya se agotaron las opciones nuevas; se permiten repeticiones controladas.'
+          : 'Mostrando recetas compatibles del catálogo verificado según tus ingredientes.';
+
+      ref
+          .read(lastGeneratedRecipeIdsProvider.notifier)
+          .setIds(display.map((m) => m.recipe.id).toList());
+
+      await ref.read(historyProvider.notifier).add(
+        'recetas',
+        'Catálogo verificado: ${display.length} recetas generadas',
+      );
+
+      if (!mounted || requestId != _generationRequestId) return;
       setState(() {
-        _generated = results;
+        _generated = display;
         _generationNote = note;
         _loading = false;
       });
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted || requestId != _generationRequestId) return;
       setState(() {
         _loading = false;
         _generationNote = 'No se pudo generar: $error';
       });
     }
-  }
-
-  void _resetFilters() {
-    setState(() {
-      _searchController.clear();
-      _filters.clear();
-      _category = null;
-      _generated = null;
-      _generationNote = null;
-    });
   }
 
   String _normalize(String value) {
@@ -555,11 +769,4 @@ class _RecipesScreenState extends ConsumerState<RecipesScreen> {
     }
     return catalog?.resolveKey(ingredient.name) ?? '';
   }
-}
-
-class _CategoryOption {
-  const _CategoryOption({required this.label, required this.tag});
-
-  final String label;
-  final String? tag;
 }

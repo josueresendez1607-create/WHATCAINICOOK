@@ -115,7 +115,6 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
     if (!mounted) return;
 
     ref.read(scanDraftProvider.notifier).clear();
-    ref.read(exploreCategoryProvider.notifier).set('__all__');
     ref.read(navigationIndexProvider.notifier).select(AppShell.explore);
     Navigator.of(context).pop();
   }
@@ -321,28 +320,54 @@ class _EditableIngredientCardState extends State<_EditableIngredientCard> {
                       prefixIcon: Icon(Icons.numbers_outlined, size: 18),
                     ),
                   ),
-                  if (confidence != null) ...[
+                  if (confidence != null || widget.item.uncertain) ...[
                     const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.cardRaised,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          'Confianza IA: ${(confidence * 100).round()}%',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: AppColors.goldBright,
-                            fontWeight: FontWeight.w700,
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        if (confidence != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.cardRaised,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'Confianza IA: ${(confidence * 100).round()}%',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: AppColors.goldBright,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
+                        if (widget.item.uncertain)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.danger.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: AppColors.danger.withValues(alpha: 0.35),
+                              ),
+                            ),
+                            child: const Text(
+                              'Incierto: confirma o edita',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: AppColors.danger,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ],
                 ],

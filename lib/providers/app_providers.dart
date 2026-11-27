@@ -1,15 +1,22 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
+import 'package:whatcanicook/core/async_value_ext.dart';
 import 'package:whatcanicook/models/hidden_recipe.dart';
 import 'package:whatcanicook/models/ingredient.dart';
 import 'package:whatcanicook/models/shopping_item.dart';
 import 'package:whatcanicook/models/user_profile.dart';
 import 'package:whatcanicook/repositories/ai_cache_repository.dart';
+import 'package:whatcanicook/repositories/backend_config_repository.dart';
+import 'package:whatcanicook/repositories/cooking_session_repository.dart';
 import 'package:whatcanicook/repositories/favorite_repository.dart';
 import 'package:whatcanicook/repositories/hidden_recipe_repository.dart';
 import 'package:whatcanicook/repositories/history_repository.dart';
 import 'package:whatcanicook/repositories/ingredient_repository.dart';
 import 'package:whatcanicook/repositories/profile_repository.dart';
 import 'package:whatcanicook/repositories/shopping_list_repository.dart';
+import 'package:whatcanicook/services/ai_connection_service.dart';
 import 'package:whatcanicook/services/catalog_service.dart';
 import 'package:whatcanicook/services/recipe_generation_service.dart';
 import 'package:whatcanicook/services/vision_service.dart';
@@ -26,25 +33,84 @@ final aiCacheRepositoryProvider = Provider((ref) => AiCacheRepository());
 final shoppingListRepositoryProvider = Provider(
   (ref) => ShoppingListRepository(),
 );
-final visionServiceProvider = Provider(
-  (ref) => VisionService(cache: ref.read(aiCacheRepositoryProvider)),
+final cookingSessionRepositoryProvider = Provider(
+  (ref) => CookingSessionRepository(),
 );
-final recipeGenerationServiceProvider = Provider(
-  (ref) => RecipeGenerationService(cache: ref.read(aiCacheRepositoryProvider)),
+final backendConfigRepositoryProvider = Provider(
+  (ref) => BackendConfigRepository(),
 );
 
-/// Categoría solicitada desde Home. RecipesScreen la consume y la limpia.
-final exploreCategoryProvider =
-    NotifierProvider<ExploreCategoryNotifier, String?>(
-      ExploreCategoryNotifier.new,
+final backendBaseUrlProvider =
+    AsyncNotifierProvider<BackendBaseUrlNotifier, String>(
+      BackendBaseUrlNotifier.new,
     );
 
-class ExploreCategoryNotifier extends Notifier<String?> {
+class BackendBaseUrlNotifier extends AsyncNotifier<String> {
   @override
-  String? build() => null;
+  Future<String> build() =>
+      ref.read(backendConfigRepositoryProvider).getBaseUrl();
 
-  void set(String? category) => state = category;
-  void clear() => state = null;
+  Future<void> set(String value) async {
+    await ref.read(backendConfigRepositoryProvider).setBaseUrl(value);
+    state = AsyncData(
+      await ref.read(backendConfigRepositoryProvider).getBaseUrl(),
+    );
+  }
+
+  /// Actualiza el estado tras descubrimiento automático (ya persistido).
+  void setDiscovered(String normalizedUrl) {
+    state = AsyncData(normalizedUrl);
+  }
+}
+
+final aiConnectionServiceProvider = ChangeNotifierProvider<AiConnectionService>(
+  (ref) {
+    final repo = ref.read(backendConfigRepositoryProvider);
+    final service = AiConnectionService(
+      configRepository: repo,
+      onBaseUrlChanged: (url) async {
+        ref.read(backendBaseUrlProvider.notifier).setDiscovered(url);
+      },
+    );
+    // Inicia descubrimiento en segundo plano; no bloquea UI.
+    unawaited(service.start());
+    return service;
+  },
+);
+
+final aiConnectionSnapshotProvider = Provider<AiConnectionSnapshot>((ref) {
+  return ref.watch(aiConnectionServiceProvider).snapshot;
+});
+
+final visionServiceProvider = Provider((ref) {
+  final baseUrl = ref.watch(backendBaseUrlProvider).valueOrNull ?? '';
+  return VisionService(
+    baseUrl: baseUrl,
+    cache: ref.read(aiCacheRepositoryProvider),
+  );
+});
+
+final recipeGenerationServiceProvider = Provider((ref) {
+  final baseUrl = ref.watch(backendBaseUrlProvider).valueOrNull ?? '';
+  return RecipeGenerationService(
+    baseUrl: baseUrl,
+    cache: ref.read(aiCacheRepositoryProvider),
+  );
+});
+
+/// IDs de recetas mostradas en la última generación (en memoria) para evitar
+/// repeticiones inmediatas cuando existan otras coincidencias.
+final lastGeneratedRecipeIdsProvider =
+    NotifierProvider<LastGeneratedRecipeIdsNotifier, List<String>>(
+      LastGeneratedRecipeIdsNotifier.new,
+    );
+
+class LastGeneratedRecipeIdsNotifier extends Notifier<List<String>> {
+  @override
+  List<String> build() => const [];
+
+  void setIds(List<String> ids) => state = List.unmodifiable(ids);
+  void clear() => state = const [];
 }
 
 final ingredientCatalogProvider = FutureProvider((ref) {
@@ -65,15 +131,48 @@ class IngredientsNotifier extends AsyncNotifier<List<Ingredient>> {
   Future<List<Ingredient>> build() =>
       ref.read(ingredientRepositoryProvider).all();
 
-  Future<void> add(Ingredient ingredient) async {
+  String _norm(String v) => v
+      .toLowerCase()
+      .trim()
+      .replaceAll(RegExp(r'[áàäâã]'), 'a')
+      .replaceAll(RegExp(r'[éèëê]'), 'e')
+      .replaceAll(RegExp(r'[íìïî]'), 'i')
+      .replaceAll(RegExp(r'[óòöôõ]'), 'o')
+      .replaceAll(RegExp(r'[úùüû]'), 'u')
+      .replaceAll(RegExp(r'ñ'), 'n')
+      .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+
+  bool _isDuplicate(List<Ingredient> current, Ingredient ingredient) {
+    final key = (ingredient.key ?? '').trim().toLowerCase();
+    final name = _norm(ingredient.name);
+    for (final existing in current) {
+      final eKey = (existing.key ?? '').trim().toLowerCase();
+      if (key.isNotEmpty && eKey.isNotEmpty && key == eKey) return true;
+      if (name.isNotEmpty && _norm(existing.name) == name) return true;
+    }
+    return false;
+  }
+
+  Future<bool> add(Ingredient ingredient) async {
+    final current = state.valueOrNull ?? await ref.read(ingredientRepositoryProvider).all();
+    if (_isDuplicate(current, ingredient)) return false;
     await _update(() async {
       await ref.read(ingredientRepositoryProvider).add(ingredient);
     });
+    return true;
   }
 
   Future<void> addMany(List<Ingredient> items) async {
     await _update(() async {
-      await ref.read(ingredientRepositoryProvider).addMany(items);
+      final current = await ref.read(ingredientRepositoryProvider).all();
+      final merged = <Ingredient>[...current];
+      for (final item in items) {
+        if (_isDuplicate(merged, item)) continue;
+        final added = await ref.read(ingredientRepositoryProvider).add(item);
+        merged.add(added);
+      }
     });
   }
 
@@ -247,6 +346,7 @@ class ScanDraftNotifier extends Notifier<List<DetectedIngredient>> {
         quantity: item.quantity,
         unit: item.unit,
         category: item.category,
+        uncertain: item.uncertain,
       ),
       ...state.sublist(index + 1),
     ];
@@ -264,6 +364,7 @@ class ScanDraftNotifier extends Notifier<List<DetectedIngredient>> {
         quantity: quantity.isEmpty ? null : quantity,
         unit: item.unit,
         category: item.category,
+        uncertain: item.uncertain,
       ),
       ...state.sublist(index + 1),
     ];

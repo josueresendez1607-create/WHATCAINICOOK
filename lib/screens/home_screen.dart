@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:whatcanicook/core/async_value_ext.dart';
-import 'package:whatcanicook/core/config.dart';
 import 'package:whatcanicook/core/result.dart';
 import 'package:whatcanicook/core/routes.dart';
 import 'package:whatcanicook/core/theme.dart';
@@ -16,7 +15,6 @@ import 'package:whatcanicook/providers/app_providers.dart';
 import 'package:whatcanicook/services/recipe_matcher.dart';
 import 'package:whatcanicook/utils/feedback.dart';
 import 'package:whatcanicook/widgets/app_logo.dart';
-import 'package:whatcanicook/widgets/category_tile.dart';
 import 'package:whatcanicook/widgets/food_image.dart';
 import 'package:whatcanicook/widgets/recipe_card.dart';
 import 'package:whatcanicook/widgets/section_header.dart';
@@ -30,60 +28,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _scanning = false;
-  final ScrollController _categoryScrollController = ScrollController();
-
-  @override
-  void dispose() {
-    _categoryScrollController.dispose();
-    super.dispose();
-  }
-
-  static const List<_Category> _categories = [
-    _Category(
-      label: 'Desayunos',
-      tag: 'desayuno',
-      icon: Icons.wb_sunny_outlined,
-    ),
-    _Category(
-      label: 'Comidas',
-      tag: 'comida',
-      icon: Icons.lunch_dining_outlined,
-    ),
-    _Category(label: 'Cenas', tag: 'cena', icon: Icons.dinner_dining_outlined),
-    _Category(label: 'Postres', tag: 'postres', icon: Icons.cake_outlined),
-    _Category(label: 'Ensaladas', tag: 'ensaladas', icon: Icons.eco_outlined),
-    _Category(
-      label: 'Bebidas',
-      tag: 'bebidas',
-      icon: Icons.local_drink_outlined,
-    ),
-    _Category(
-      label: 'Saludables',
-      tag: 'saludable',
-      icon: Icons.favorite_outline,
-    ),
-    _Category(label: 'Rápidas', tag: 'rapida', icon: Icons.bolt_outlined),
-    _Category(
-      label: 'Económicas',
-      tag: 'economica',
-      icon: Icons.savings_outlined,
-    ),
-    _Category(
-      label: 'Alta proteína',
-      tag: 'alta_en_proteinas',
-      icon: Icons.fitness_center_outlined,
-    ),
-    _Category(
-      label: 'Bajas calorías',
-      tag: 'baja_en_calorias',
-      icon: Icons.local_fire_department_outlined,
-    ),
-    _Category(
-      label: 'Vegetariana',
-      tag: 'vegetariana',
-      icon: Icons.eco_rounded,
-    ),
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -190,70 +134,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               const SizedBox(height: 22),
 
-              const SectionHeader(
-                title: 'Categorías',
-                subtitle:
-                    'Desliza horizontalmente para ver todas las categorías.',
-              ),
-              const SizedBox(height: 12),
-              Stack(
-                children: [
-                  SizedBox(
-                    height: 104,
-                    child: ListView.separated(
-                      controller: _categoryScrollController,
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.only(right: 44),
-                      itemCount: _categories.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: 10),
-                      itemBuilder: (context, index) {
-                        final category = _categories[index];
-                        return CategoryTile(
-                          icon: category.icon,
-                          label: category.label,
-                          onTap: () {
-                            ref
-                                .read(exploreCategoryProvider.notifier)
-                                .set(category.tag);
-                            ref
-                                .read(navigationIndexProvider.notifier)
-                                .select(AppShell.explore);
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    bottom: 0,
-                    child: IgnorePointer(
-                      child: Container(
-                        width: 56,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Color(0x00161618), AppColors.background],
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    right: 3,
-                    top: 0,
-                    bottom: 0,
-                    child: Center(
-                      child: _CircleAction(
-                        icon: Icons.arrow_forward_ios_rounded,
-                        tooltip: 'Ver más categorías',
-                        onTap: _scrollCategories,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
               const SizedBox(height: 24),
 
               ingredientsAsync.when(
@@ -263,17 +143,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      SectionHeader(
-                        title: 'Mis ingredientes',
-                        subtitle: items.isEmpty
-                            ? 'Aún no tienes ingredientes guardados.'
-                            : '${items.length} ingrediente${items.length == 1 ? '' : 's'} en tu lista.',
-                        action: TextButton(
-                          onPressed: () => items.isEmpty
-                              ? Navigator.of(context)
-                                    .pushNamed(AppRoutes.manualIngredients)
-                              : _showIngredientsSheet(items),
-                          child: Text(items.isEmpty ? 'Agregar' : 'Ver todos'),
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => Navigator.of(context)
+                            .pushNamed(AppRoutes.manualIngredients),
+                        child: SectionHeader(
+                          title: 'Mis ingredientes',
+                          subtitle: items.isEmpty
+                              ? 'Toca aquí para agregar ingredientes manualmente.'
+                              : '${items.length} ingrediente${items.length == 1 ? '' : 's'} en tu lista. Toca para administrar.',
+                          action: TextButton(
+                            onPressed: () => Navigator.of(context)
+                                .pushNamed(AppRoutes.manualIngredients),
+                            child: Text(items.isEmpty ? 'Agregar' : 'Administrar'),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -499,20 +382,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  void _scrollCategories() {
-    final controller = _categoryScrollController;
-    if (!controller.hasClients) return;
-    final target = (controller.offset + 342).clamp(
-      0.0,
-      controller.position.maxScrollExtent,
-    );
-    controller.animateTo(
-      target.toDouble(),
-      duration: const Duration(milliseconds: 320),
-      curve: Curves.easeOut,
-    );
-  }
-
   Future<void> _hideWithUndo(Recipe recipe) async {
     final notifier = ref.read(hiddenRecipesProvider.notifier);
     await notifier.hide(recipe.id, recipe.title);
@@ -667,17 +536,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Future<void> _openImage(ImageSource source) async {
     if (_scanning) return;
-    if (!AppConfig.visionConfigured) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'El análisis de fotos no está disponible en este momento. '
-            'Puedes agregar ingredientes manualmente.',
-          ),
-        ),
-      );
-      return;
-    }
 
     setState(() => _scanning = true);
     try {
@@ -727,14 +585,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
     return catalog?.resolveKey(ingredient.name) ?? '';
   }
-}
-
-class _Category {
-  const _Category({required this.label, required this.tag, required this.icon});
-
-  final String label;
-  final String tag;
-  final IconData icon;
 }
 
 class _CircleAction extends StatelessWidget {
@@ -812,7 +662,7 @@ class _FeaturedHero extends StatelessWidget {
                   ),
                 ),
                 child: const Text(
-                  'IA + RECETAS VERIFICADAS',
+                  'RECETAS VERIFICADAS',
                   style: TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.w900,
